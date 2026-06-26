@@ -65,6 +65,16 @@ python3 -m http.server 8765
 
 The build uses webpack 4 from Scratch Jr's `node_modules` (the project is incompatible with webpack 5).
 
-## Relationship to Scratch Jr
+## License
 
-Magic Tune Jr is an experimental fork / overlay. It does not modify the upstream Scratch Jr source. All Scratch Jr intellectual property (block graphics, sounds, SVG sprites, CSS) remains subject to its original licence.
+Magic Tune Jr is licensed under the **GNU Affero General Public License v3.0 or later** (AGPL-3.0-or-later). See [`LICENSE`](LICENSE) for the full text.
+
+The AGPL v3 was chosen specifically because this software may be run as a network service: anyone who offers Magic Tune Jr over a network must make the complete corresponding source available to their users.
+
+### Scratch Jr
+
+This project builds on [Scratch Jr](https://github.com/LLK/scratchjr), which is copyright © 2016 Massachusetts Institute of Technology and released under the **BSD 3-Clause License**. The full BSD 3-Clause text and copyright notice are reproduced in [`NOTICE`](NOTICE) as required by that license.
+
+The BSD 3-Clause license is permissive and compatible with the AGPL v3: MIT's permissive terms allow the derivative work to be published under a stronger copyleft license. Clause 3 of the BSD license is respected — the name "MIT" is not used to endorse or promote Magic Tune Jr.
+
+Files that originate unchanged from Scratch Jr (referenced here as symlinks) remain under the BSD 3-Clause license. New and modified files contributed to this repository are licensed under the AGPL v3.
