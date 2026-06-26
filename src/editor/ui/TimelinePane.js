@@ -207,16 +207,18 @@ export default class TimelinePane {
         for (var i = 0; i < ticks; i++) {
             var tick = newHTML('div', 'timeline-tick', ruler);
             var ms = i * RULER_TICK_MS;
-            tick.style.position  = 'absolute';
-            tick.style.left      = (ms * PX_PER_MS) + 'px';
-            tick.style.top       = '0';
-            tick.style.height    = RULER_H + 'px';
-            tick.style.fontSize  = '10px';
-            tick.style.color     = '#666';
-            tick.style.borderLeft = '1px solid #ccc';
-            tick.style.paddingLeft = '3px';
-            tick.style.boxSizing = 'border-box';
+            tick.style.position   = 'absolute';
+            tick.style.left       = (ms * PX_PER_MS) + 'px';
+            tick.style.top        = '0';
+            tick.style.height     = RULER_H + 'px';
+            tick.style.fontSize   = '11px';
+            tick.style.fontWeight = 'bold';
+            tick.style.color      = '#0277BD';
+            tick.style.borderLeft = '2px solid #81D4FA';
+            tick.style.paddingLeft = '4px';
+            tick.style.boxSizing  = 'border-box';
             tick.style.whiteSpace = 'nowrap';
+            tick.style.lineHeight = RULER_H + 'px';
             tick.textContent = TransportControls.formatTime(ms);
         }
     }
@@ -227,16 +229,16 @@ export default class TimelinePane {
         // ── Label cell ────────────────────────────────────────────────────
         var label = newHTML('div', 'timeline-label', labelList);
         label.setAttribute('data-sprite-id', spr.id);
-        label.style.height      = rowH + 'px';
-        label.style.width       = LABEL_W + 'px';
-        label.style.boxSizing   = 'border-box';
-        label.style.borderBottom = '1px solid #ddd';
-        label.style.overflow    = 'hidden';
-        label.style.display     = 'flex';
-        label.style.alignItems  = 'center';
-        label.style.gap         = '4px';
-        label.style.padding     = '0 4px';
-        label.style.fontSize    = '11px';
+        label.style.height       = rowH + 'px';
+        label.style.width        = LABEL_W + 'px';
+        label.style.boxSizing    = 'border-box';
+        label.style.borderBottom = '2px solid #C8E6C9';
+        label.style.overflow     = 'hidden';
+        label.style.display      = 'flex';
+        label.style.alignItems   = 'center';
+        label.style.gap          = '4px';
+        label.style.padding      = '0 4px';
+        label.style.fontSize     = '11px';
 
         if (spr.img) {
             var thumb = document.createElement('img');
@@ -262,14 +264,14 @@ export default class TimelinePane {
         track.style.height       = rowH + 'px';
         track.style.width        = totalPx + 'px';
         track.style.boxSizing    = 'border-box';
-        track.style.borderBottom = '1px solid #ddd';
-        track.style.background   = '#fafafa';
+        track.style.borderBottom = '2px solid #FFD180';
+        track.style.background   = '#FFFDE7';
 
-        // Faint vertical grid lines at each second.
+        // Soft vertical grid lines at each second.
         track.style.backgroundImage =
             'repeating-linear-gradient(to right, transparent, transparent ' +
-            (RULER_TICK_MS * PX_PER_MS - 1) + 'px, #e8e8e8 ' +
-            (RULER_TICK_MS * PX_PER_MS - 1) + 'px, #e8e8e8 ' +
+            (RULER_TICK_MS * PX_PER_MS - 1) + 'px, #FFE082 ' +
+            (RULER_TICK_MS * PX_PER_MS - 1) + 'px, #FFE082 ' +
             (RULER_TICK_MS * PX_PER_MS) + 'px)';
 
         if (spr.timeline) {
@@ -297,19 +299,22 @@ export default class TimelinePane {
         el.style.top             = top + 'px';
         el.style.height          = clipH + 'px';
         el.style.backgroundColor = CLIP_COLOR[clip.blocktype] || DEFAULT_CLIP_COLOR;
-        el.style.borderRadius    = '3px';
+        el.style.borderRadius    = '10px';
         el.style.overflow        = 'hidden';
         el.style.boxSizing       = 'border-box';
-        el.style.border          = '1px solid rgba(0,0,0,0.2)';
+        el.style.border          = '2px solid rgba(255,255,255,0.6)';
+        el.style.boxShadow       = '0 2px 6px rgba(0,0,0,0.22)';
         el.style.cursor          = 'grab';
         el.style.display         = 'flex';
         el.style.alignItems      = 'center';
-        el.style.padding         = '0 4px';
+        el.style.padding         = '0 6px';
 
         var labelEl = newHTML('span', 'clip-label', el);
         labelEl.textContent    = TimelinePane._clipLabel(clip);
-        labelEl.style.fontSize  = '10px';
+        labelEl.style.fontSize  = '11px';
+        labelEl.style.fontWeight = 'bold';
         labelEl.style.color     = '#fff';
+        labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.3)';
         labelEl.style.overflow  = 'hidden';
         labelEl.style.textOverflow = 'ellipsis';
         labelEl.style.whiteSpace   = 'nowrap';

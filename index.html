@@ -12,9 +12,9 @@
     flex-direction: column;
     width: 100%;
     height: 100%;
-    background: #1e1e1e;
-    color: #eee;
-    font-family: sans-serif;
+    background: #FFFBF0;
+    color: #5D4037;
+    font-family: 'Comic Sans MS', 'Chalkboard SE', 'Arial Rounded MT Bold', sans-serif;
     font-size: 12px;
     box-sizing: border-box;
     overflow: hidden;
@@ -24,33 +24,51 @@
 .transport-bar {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    background: #2d2d2d;
-    border-bottom: 1px solid #444;
+    gap: 8px;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #FFD54F 0%, #FFB300 100%);
+    border-bottom: 3px solid #FFA000;
     flex-shrink: 0;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+    /* Sit above palette canvases (z-index 10) */
+    position: relative;
+    z-index: 15;
 }
 .transport-btn {
-    padding: 4px 10px;
-    border-radius: 4px;
-    background: #444;
-    color: #eee;
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: #42A5F5;
+    color: #fff;
     cursor: pointer;
     user-select: none;
-    font-size: 14px;
-    border: 1px solid #555;
+    font-size: 18px;
+    border: 3px solid rgba(255,255,255,0.7);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+    transition: transform 0.1s, box-shadow 0.1s;
+    line-height: 1;
 }
-.transport-btn:hover { background: #555; }
-.transport-btn:active { background: #333; }
+.transport-btn:hover  { filter: brightness(1.1); transform: scale(1.05); }
+.transport-btn:active { transform: scale(0.93); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+
+/* Per-button colours */
+#transport-rewind { background: #42A5F5; }   /* sky blue   */
+#transport-play   { background: #66BB6A; }   /* grass green */
+.transport-pause  { background: #FFA726; }   /* orange when paused-state */
+#transport-stop   { background: #EF5350; }   /* coral red  */
+#transport-export { background: #AB47BC; }   /* violet     */
+
 .transport-time {
-    padding: 2px 8px;
-    background: #111;
-    border-radius: 3px;
+    padding: 4px 12px;
+    background: rgba(255,255,255,0.85);
+    border-radius: 14px;
     font-family: monospace;
-    font-size: 13px;
-    min-width: 60px;
+    font-size: 16px;
+    font-weight: bold;
+    min-width: 70px;
     text-align: center;
-    border: 1px solid #555;
+    color: #5D4037;
+    border: 2px solid rgba(255,255,255,0.95);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
 }
 .transport-sep { flex: 1; }
 
@@ -67,29 +85,31 @@
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    border-right: 1px solid #444;
+    border-right: 3px solid #A5D6A7;
 }
 #timeline-corner {
     height: 28px;
-    background: #252525;
-    border-bottom: 1px solid #444;
+    background: #C8E6C9;
+    border-bottom: 3px solid #A5D6A7;
     flex-shrink: 0;
 }
 #timeline-label-list {
     overflow: hidden;
     flex: 1;
-    background: #252525;
+    background: #E8F5E9;
 }
 .timeline-label {
     display: flex;
     align-items: center;
     padding: 0 6px;
     font-size: 11px;
-    color: #ccc;
-    border-bottom: 1px solid #333;
+    font-weight: bold;
+    color: #2E7D32;
+    border-bottom: 2px solid #C8E6C9;
     overflow: hidden;
     white-space: nowrap;
     box-sizing: border-box;
+    background: #E8F5E9;
 }
 
 /* Scroll area (ruler + tracks) */
@@ -97,34 +117,19 @@
     flex: 1;
     overflow: auto;
     position: relative;
+    background: #FFFBF0;
 }
 
 /* Ruler */
 #timeline-ruler {
     height: 28px;
-    background: #252525;
-    border-bottom: 1px solid #444;
+    background: #E1F5FE;
+    border-bottom: 3px solid #81D4FA;
     position: sticky;
     top: 0;
     z-index: 5;
     cursor: col-resize;
     user-select: none;
-}
-.ruler-tick {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: #555;
-    pointer-events: none;
-}
-.ruler-label {
-    position: absolute;
-    top: 6px;
-    font-size: 10px;
-    color: #888;
-    pointer-events: none;
-    white-space: nowrap;
 }
 
 /* Track list */
@@ -132,7 +137,7 @@
     position: relative;
 }
 .timeline-row {
-    border-bottom: 1px solid #333;
+    border-bottom: 2px solid #FFD180;
     position: relative;
     box-sizing: border-box;
 }
@@ -140,19 +145,22 @@
 /* Clips */
 .timeline-clip {
     position: absolute;
-    border-radius: 3px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
-    padding: 0 4px;
-    font-size: 10px;
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: bold;
     color: #fff;
     overflow: hidden;
     white-space: nowrap;
     box-sizing: border-box;
     cursor: grab;
     user-select: none;
-    border: 1px solid rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.6);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.22);
     min-width: 8px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 .timeline-clip:active { cursor: grabbing; }
 
@@ -160,18 +168,12 @@
 #timeline-playhead {
     position: absolute;
     top: 0;
-    width: 2px;
-    background: #e55;
+    width: 3px;
+    background: #FF1744;
+    border-radius: 2px;
     pointer-events: none;
     z-index: 10;
-}
-
-/* ── Layout fixes ──────────────────────────────────────────────────────── */
-/* Transport bar must sit above the palette's block canvases which overflow
-   into the timeline area.  The palette itself is z-index:10 so we go to 15. */
-.transport-bar {
-    position: relative !important;
-    z-index: 15 !important;
+    box-shadow: 0 0 4px rgba(255,23,68,0.5);
 }
 </style>
 <script>

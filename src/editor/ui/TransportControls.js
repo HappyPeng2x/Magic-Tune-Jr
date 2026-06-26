@@ -21,7 +21,7 @@ export default class TransportControls {
         TransportControls._makeButton(bar, 'transport-rewind', '⏮', 'Rewind',
             TransportControls.onRewind);
 
-        TransportControls._makeButton(bar, 'transport-play', '▶', 'Play',
+        TransportControls._makeButton(bar, 'transport-play', '▶️', 'Play',
             TransportControls.onPlayPause);
 
         TransportControls._makeButton(bar, 'transport-stop', '⏹', 'Stop',
@@ -35,7 +35,7 @@ export default class TransportControls {
         var sep = newHTML('div', 'transport-sep', bar);
         sep.style.flex = '1';
 
-        TransportControls._makeButton(bar, 'transport-export', '⬇', 'Export Video',
+        TransportControls._makeButton(bar, 'transport-export', '🎬', 'Export Video',
             TransportControls.onExport);
 
         TransportControls._startUpdater();
@@ -74,7 +74,7 @@ export default class TransportControls {
         var btn = gn('transport-export');
         if (VideoExporter.exporting) {
             VideoExporter.cancel();
-            if (btn) { btn.textContent = '⬇'; btn.title = 'Export Video'; }
+            if (btn) { btn.textContent = '🎬'; btn.title = 'Export Video'; }
             return;
         }
         VideoExporter.start(
@@ -84,7 +84,7 @@ export default class TransportControls {
             },
             function () {
                 var b = gn('transport-export');
-                if (b) { b.textContent = '⬇'; b.title = 'Export Video'; }
+                if (b) { b.textContent = '🎬'; b.title = 'Export Video'; }
             }
         );
     }
@@ -107,7 +107,7 @@ export default class TransportControls {
             } else {
                 playBtn.className = 'transport-btn transport-play';
                 playBtn.title = 'Play';
-                playBtn.textContent = '▶';
+                playBtn.textContent = '▶️';
             }
         }
 
