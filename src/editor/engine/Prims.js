@@ -1,1 +1,1 @@
-/home/happypeng/Code/scratchjr/src/editor/engine/Prims.js
+../../../scratchjr/src/editor/engine/Prims.js

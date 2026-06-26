@@ -1,9 +1,9 @@
 var path = require('path');
 // Require webpack 4 from scratchjr's node_modules — the system has webpack 5
 // which is incompatible with the webpack 4 API used in this config.
-var webpack = require(path.resolve(__dirname, '../scratchjr/node_modules/webpack'));
+var webpack = require(path.resolve(__dirname, 'scratchjr/node_modules/webpack'));
 
-var scratchjrNm  = path.resolve(__dirname, '../scratchjr/node_modules');
+var scratchjrNm  = path.resolve(__dirname, 'scratchjr/node_modules');
 
 module.exports = {
     devtool: 'source-map',
@@ -15,7 +15,7 @@ module.exports = {
     performance: { hints: false },
     resolveLoader: {
         modules: [
-            path.resolve(__dirname, '../scratchjr/node_modules'),
+            path.resolve(__dirname, 'scratchjr/node_modules'),
             'node_modules'
         ]
     },
@@ -26,7 +26,7 @@ module.exports = {
         // up our overrides instead of scratchjr's originals.
         symlinks: false,
         modules: [
-            path.resolve(__dirname, '../scratchjr/node_modules'),
+            path.resolve(__dirname, 'scratchjr/node_modules'),
             'node_modules'
         ]
     },

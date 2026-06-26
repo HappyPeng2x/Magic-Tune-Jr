@@ -2,7 +2,7 @@
 // Uses scratchjr's webpack 4 installation directly.
 process.chdir(__dirname);
 
-const webpack = require('../scratchjr/node_modules/webpack');
+const webpack = require('./scratchjr/node_modules/webpack');
 const config  = require('./webpack.config.js');
 const watch   = process.argv.includes('--watch');
 

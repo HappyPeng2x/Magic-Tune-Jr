@@ -1,0 +1,3 @@
+[submodule "scratchjr"]
+	path = scratchjr
+	url = https://github.com/HappyPeng2x/scratchjr.git

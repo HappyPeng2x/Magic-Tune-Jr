@@ -1,1 +1,1 @@
-/home/happypeng/Code/scratchjr/src/editor/ui/Alert.js
+../../../scratchjr/src/editor/ui/Alert.js

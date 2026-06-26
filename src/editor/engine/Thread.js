@@ -1,1 +1,1 @@
-/home/happypeng/Code/scratchjr/src/editor/engine/Thread.js
+../../../scratchjr/src/editor/engine/Thread.js

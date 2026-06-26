@@ -1,1 +1,1 @@
-/home/happypeng/Code/scratchjr/src/editor/ui/Record.js
+../../../scratchjr/src/editor/ui/Record.js

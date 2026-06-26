@@ -1,1 +1,1 @@
-../../../scratchjr/src/tablet/IO.js
+../../scratchjr/src/tablet/IO.js

@@ -1,1 +1,1 @@
-../../../scratchjr/src/tablet/MediaLib.js
+../../scratchjr/src/tablet/MediaLib.js

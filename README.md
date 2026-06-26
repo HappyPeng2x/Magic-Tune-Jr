@@ -17,11 +17,10 @@ Children drag motion, looks, and sound blocks from the familiar Scratch Jr palet
 
 ## How it works
 
-Magic Tune Jr sits alongside a standard Scratch Jr checkout and re-uses its engine and asset pipeline. Only the files that differ are kept in this repo; everything else is referenced via symlinks.
+Magic Tune Jr bundles Scratch Jr as a git submodule and re-uses its engine and asset pipeline. Only the files that differ are kept in this repo; everything else is referenced via symlinks into the submodule.
 
 ```
-scratchjr/          ← upstream Scratch Jr checkout (sibling directory)
-magictunejr/
+scratchjr/          ← Scratch Jr git submodule (inside this repo)
   src/
     entry/app.js           ← webpack entry point
     editor/
@@ -43,13 +42,19 @@ magictunejr/
 
 Symlinks in `src/editor/ui/`, `src/editor/engine/`, and `src/tablet/` point to the corresponding unmodified Scratch Jr source files. `webpack.config.js` sets `resolve.symlinks: false` so the entire import graph resolves through this repo's directory tree — overrides are picked up automatically without any module aliasing.
 
-## Prerequisites
+## Getting started
 
-- Node.js 16+
-- A checkout of [Scratch Jr](https://github.com/LLK/scratchjr) at `../scratchjr` (sibling of this repo)
-- Scratch Jr's dependencies installed: `cd ../scratchjr && npm install`
+Scratch Jr is included as a git submodule, so one clone command gets everything:
 
-## Development
+```bash
+git clone --recurse-submodules https://github.com/HappyPeng2x/Magic-Tune-Jr.git
+cd Magic-Tune-Jr
+
+# Install Scratch Jr's build dependencies (webpack 4, babel, etc.)
+cd scratchjr && npm install && cd ..
+```
+
+Then build and serve:
 
 ```bash
 # one-time build
@@ -63,7 +68,14 @@ python3 -m http.server 8765
 # then open http://localhost:8765
 ```
 
-The build uses webpack 4 from Scratch Jr's `node_modules` (the project is incompatible with webpack 5).
+The build uses webpack 4 from the Scratch Jr submodule (incompatible with webpack 5).
+
+If you already cloned without `--recurse-submodules`:
+
+```bash
+git submodule update --init
+cd scratchjr && npm install && cd ..
+```
 
 ## License
 
