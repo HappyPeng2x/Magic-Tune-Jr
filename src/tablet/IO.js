@@ -1,0 +1,1 @@
+../../../scratchjr/src/tablet/IO.js

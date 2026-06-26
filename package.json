@@ -1,0 +1,10 @@
+{
+  "name": "magictunejr",
+  "version": "0.1.0",
+  "description": "Timeline-based ScratchJr fork",
+  "private": true,
+  "scripts": {
+    "build": "NODE_OPTIONS=--openssl-legacy-provider node build.js",
+    "watch": "NODE_OPTIONS=--openssl-legacy-provider node build.js --watch"
+  }
+}
