@@ -50,7 +50,7 @@ export default class Palette {
         blockscale *= scaleMultiplier;
         blockdy *= scaleMultiplier;
         Palette.blockdx *= scaleMultiplier; // XXX
-        betweenblocks = Math.round(74 * scaleMultiplier); // candy blocks: 60px + 14px gap
+        betweenblocks = Math.round(68 * scaleMultiplier); // candy blocks: 54px + 14px gap
         Palette.createCategorySelectors(parent);
         var div = newHTML('div', 'palette', parent);
         div.setAttribute('id', 'palette');
@@ -636,13 +636,15 @@ export default class Palette {
     // Replace the Scratch Jr lego-puzzle canvas rendering with a candy-style
     // square block matching the timeline clip design.
     static _styleAsCandyBlock (div, block, op) {
-        // Hide Scratch Jr's canvas children — they stay in the DOM so that
-        // getArgValue() and duplicateBlock() still work, but are invisible.
+        // Use display:none (not visibility:hidden) so that Block.lift(), which
+        // sets this.shadow.style.visibility = 'visible', cannot un-hide the
+        // canvas puzzle-piece shadow after we've already hidden it.
         for (var i = 0; i < div.childElementCount; i++) {
-            div.childNodes[i].style.visibility = 'hidden';
+            div.childNodes[i].style.display = 'none';
         }
 
-        var size  = Math.round(60 * scaleMultiplier);
+        // 54 px fits inside the 64 px palette bar with 5 px top padding.
+        var size  = Math.round(54 * scaleMultiplier);
         var color = CLIP_COLOR[op] || '#888888';
 
         setProps(div.style, {
