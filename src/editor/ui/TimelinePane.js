@@ -42,7 +42,7 @@ const RESIZE_HANDLE_W = 8;
 // These inline colours let the pane render without a CSS file.  A real CSS
 // stylesheet will override them with polished values.
 
-const CLIP_COLOR = {
+export const CLIP_COLOR = {
     // Motion  (Scratch Jr blue)
     forward: '#4C97FF', back: '#4C97FF',
     up:      '#4C97FF', down: '#4C97FF',
@@ -64,7 +64,7 @@ const DEFAULT_CLIP_COLOR = '#888888';
 
 // Map blocktype → SVG icon filename (inside assets/blockicons/).
 // Filenames match the scratchjr asset tree exactly (note "Foward" typo).
-const BLOCK_ICON = {
+export const BLOCK_ICON = {
     forward:     'Foward',
     back:        'Back',
     up:          'Up',

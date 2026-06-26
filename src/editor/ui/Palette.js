@@ -6,6 +6,7 @@ import ScratchJr from '../ScratchJr';
 import Block from '../blocks/Block';
 import BlockSpecs from '../blocks/BlockSpecs';
 import TimelinePalette from './TimelinePalette';
+import {CLIP_COLOR, BLOCK_ICON} from './TimelinePane';
 import Undo from './Undo';
 import OS from '../../tablet/OS';
 import MediaLib from '../../tablet/MediaLib';
@@ -44,7 +45,7 @@ export default class Palette {
         blockscale *= scaleMultiplier;
         blockdy *= scaleMultiplier;
         Palette.blockdx *= scaleMultiplier; // XXX
-        betweenblocks = 90 * blockscale;
+        betweenblocks = Math.round(74 * scaleMultiplier); // candy blocks: 60px + 14px gap
         Palette.createCategorySelectors(parent);
         var div = newHTML('div', 'palette', parent);
         div.setAttribute('id', 'palette');
@@ -579,8 +580,67 @@ export default class Palette {
             left: dx + 'px',
             top: dy + 'px'
         });
+        Palette._styleAsCandyBlock(bbx.div, bbx, op);
         parent.appendChild(bbx.div);
         return bbx;
+    }
+
+    // Replace the Scratch Jr lego-puzzle canvas rendering with a candy-style
+    // square block matching the timeline clip design.
+    static _styleAsCandyBlock (div, block, op) {
+        // Hide Scratch Jr's canvas children — they stay in the DOM so that
+        // getArgValue() and duplicateBlock() still work, but are invisible.
+        for (var i = 0; i < div.childElementCount; i++) {
+            div.childNodes[i].style.visibility = 'hidden';
+        }
+
+        var size  = Math.round(60 * scaleMultiplier);
+        var color = CLIP_COLOR[op] || '#888888';
+
+        setProps(div.style, {
+            width:           size + 'px',
+            height:          size + 'px',
+            backgroundColor: color,
+            backgroundImage: 'linear-gradient(to bottom, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0) 55%)',
+            borderRadius:    '14px',
+            border:          '2px solid rgba(255,255,255,0.65)',
+            boxShadow:       '0 4px 10px rgba(0,0,0,0.28)',
+            display:         'flex',
+            flexDirection:   'column',
+            alignItems:      'center',
+            justifyContent:  'center',
+            gap:             '4px',
+            cursor:          'grab',
+            boxSizing:       'border-box',
+        });
+
+        var iconName = BLOCK_ICON[op];
+        var iconSize = Math.round(size * 0.50);
+        if (iconName) {
+            var iconEl = document.createElement('img');
+            iconEl.src              = 'assets/blockicons/' + iconName + '.svg';
+            iconEl.style.width      = iconSize + 'px';
+            iconEl.style.height     = iconSize + 'px';
+            iconEl.style.filter     = 'brightness(0) invert(1)';
+            iconEl.style.pointerEvents = 'none';
+            div.appendChild(iconEl);
+        }
+
+        var arg = (block && block.getArgValue) ? block.getArgValue() : null;
+        var argStr = (arg !== null && arg !== undefined) ? String(arg) : '';
+        if (argStr !== '' && argStr !== 'undefined' && argStr !== 'null') {
+            var argEl = document.createElement('span');
+            argEl.textContent           = argStr;
+            argEl.style.fontSize        = '13px';
+            argEl.style.fontWeight      = 'bold';
+            argEl.style.color           = '#fff';
+            argEl.style.textShadow      = '0 1px 2px rgba(0,0,0,0.5)';
+            argEl.style.background      = 'rgba(0,0,0,0.22)';
+            argEl.style.borderRadius    = '8px';
+            argEl.style.padding         = '1px 7px';
+            argEl.style.pointerEvents   = 'none';
+            div.appendChild(argEl);
+        }
     }
 
     static dropBlockFromPalette (e, element) {
