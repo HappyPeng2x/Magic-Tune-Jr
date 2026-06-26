@@ -11,11 +11,11 @@ export const PX_PER_MS = 0.25;
 
 // Height of the ruler row and each sprite track row, in pixels.
 const RULER_H  = 28;
-export const ROW_H    = 44;
+export const ROW_H    = 48;
 
 // Height of a single clip sub-track within a row.
-// track:0 → top 22 px, track:1 → next 22 px, etc.
-export const TRACK_H  = 22;
+// Tall enough to fit a block icon (32 px content = TRACK_H - 4).
+export const TRACK_H  = 36;
 
 // Width of the fixed sprite-label column on the left.
 const LABEL_W  = 80;
@@ -61,6 +61,33 @@ const CLIP_COLOR = {
 };
 
 const DEFAULT_CLIP_COLOR = '#888888';
+
+// Map blocktype → SVG icon filename (inside assets/blockicons/).
+// Filenames match the scratchjr asset tree exactly (note "Foward" typo).
+const BLOCK_ICON = {
+    forward:     'Foward',
+    back:        'Back',
+    up:          'Up',
+    down:        'Down',
+    right:       'Right',
+    left:        'Left',
+    home:        'Home',
+    hop:         'Hop',
+    wait:        'Wait',
+    stopmine:    'Stop',
+    stopall:     'Stop',
+    say:         'Say',
+    show:        'Appear',
+    hide:        'Disappear',
+    grow:        'Grow',
+    shrink:      'Shrink',
+    same:        'Reset',
+    playsnd:     'Speaker',
+    playusersnd: 'Microphone',
+    repeat:      'Repeat',
+    forever:     'Forever',
+    setspeed:    'speed1',
+};
 
 // ── Module-level state ────────────────────────────────────────────────────────
 
@@ -288,37 +315,63 @@ export default class TimelinePane {
             MIN_CLIP_W
         );
         var subTrack = clip.track || 0;
-        var top  = subTrack * TRACK_H + 2;
-        var clipH = TRACK_H - 4;
+        var top   = subTrack * TRACK_H + 2;
+        var clipH = TRACK_H - 4;   // 32 px tall at default TRACK_H=36
+
+        var color = CLIP_COLOR[clip.blocktype] || DEFAULT_CLIP_COLOR;
 
         var el = newHTML('div', 'timeline-clip', track);
         el.setAttribute('data-clip-id', clip.id);
-        el.style.position        = 'absolute';
-        el.style.left            = left + 'px';
-        el.style.width           = width + 'px';
-        el.style.top             = top + 'px';
-        el.style.height          = clipH + 'px';
-        el.style.backgroundColor = CLIP_COLOR[clip.blocktype] || DEFAULT_CLIP_COLOR;
-        el.style.borderRadius    = '10px';
-        el.style.overflow        = 'hidden';
-        el.style.boxSizing       = 'border-box';
-        el.style.border          = '2px solid rgba(255,255,255,0.6)';
-        el.style.boxShadow       = '0 2px 6px rgba(0,0,0,0.22)';
-        el.style.cursor          = 'grab';
-        el.style.display         = 'flex';
-        el.style.alignItems      = 'center';
-        el.style.padding         = '0 6px';
+        el.style.position    = 'absolute';
+        el.style.left        = left + 'px';
+        el.style.width       = width + 'px';
+        el.style.top         = top + 'px';
+        el.style.height      = clipH + 'px';
+        el.style.borderRadius = '10px';
+        el.style.overflow    = 'hidden';
+        el.style.boxSizing   = 'border-box';
+        el.style.border      = '2px solid rgba(255,255,255,0.65)';
+        el.style.boxShadow   = '0 3px 8px rgba(0,0,0,0.25)';
+        el.style.cursor      = 'grab';
+        el.style.display     = 'flex';
+        el.style.alignItems  = 'center';
+        el.style.padding     = '0 5px';
+        el.style.gap         = '3px';
+        // Solid colour + top-shine gradient (both layers work together)
+        el.style.backgroundColor = color;
+        el.style.backgroundImage =
+            'linear-gradient(to bottom, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0) 55%)';
 
-        var labelEl = newHTML('span', 'clip-label', el);
-        labelEl.textContent    = TimelinePane._clipLabel(clip);
-        labelEl.style.fontSize  = '11px';
-        labelEl.style.fontWeight = 'bold';
-        labelEl.style.color     = '#fff';
-        labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.3)';
-        labelEl.style.overflow  = 'hidden';
-        labelEl.style.textOverflow = 'ellipsis';
-        labelEl.style.whiteSpace   = 'nowrap';
-        labelEl.style.pointerEvents = 'none';
+        // Block icon — white silhouette via CSS filter
+        var iconName = BLOCK_ICON[clip.blocktype];
+        var iconSize = clipH - 6;   // 26 px at default
+        if (iconName) {
+            var iconEl = document.createElement('img');
+            iconEl.src    = 'assets/blockicons/' + iconName + '.svg';
+            iconEl.style.width        = iconSize + 'px';
+            iconEl.style.height       = iconSize + 'px';
+            iconEl.style.flexShrink   = '0';
+            iconEl.style.filter       = 'brightness(0) invert(1)';
+            iconEl.style.pointerEvents = 'none';
+            el.appendChild(iconEl);
+        }
+
+        // Argument badge (the number or text value of the block)
+        var arg = clip.arg;
+        if (arg !== null && arg !== undefined && String(arg) !== '') {
+            var argEl = newHTML('span', 'clip-arg', el);
+            argEl.textContent           = String(arg);
+            argEl.style.fontSize        = '12px';
+            argEl.style.fontWeight      = 'bold';
+            argEl.style.color           = '#fff';
+            argEl.style.textShadow      = '0 1px 2px rgba(0,0,0,0.45)';
+            argEl.style.background      = 'rgba(0,0,0,0.18)';
+            argEl.style.borderRadius    = '7px';
+            argEl.style.padding         = '1px 5px';
+            argEl.style.whiteSpace      = 'nowrap';
+            argEl.style.pointerEvents   = 'none';
+            argEl.style.flexShrink      = '0';
+        }
 
         // Cursor hint: right edge → ew-resize, body → grab.
         el.onmousemove = function (e) {
