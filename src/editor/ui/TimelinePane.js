@@ -356,21 +356,26 @@ export default class TimelinePane {
             el.appendChild(iconEl);
         }
 
-        // Argument badge (the number or text value of the block)
+        // Argument badge — pinned to the bottom-right corner so it is never
+        // clipped by a narrow clip.  position:absolute is relative to el
+        // (which is itself position:absolute, making it a containing block).
         var arg = clip.arg;
         if (arg !== null && arg !== undefined && String(arg) !== '') {
             var argEl = newHTML('span', 'clip-arg', el);
             argEl.textContent           = String(arg);
-            argEl.style.fontSize        = '12px';
+            argEl.style.position        = 'absolute';
+            argEl.style.bottom          = '2px';
+            argEl.style.right           = '3px';
+            argEl.style.fontSize        = '11px';
             argEl.style.fontWeight      = 'bold';
+            argEl.style.lineHeight      = '14px';
             argEl.style.color           = '#fff';
-            argEl.style.textShadow      = '0 1px 2px rgba(0,0,0,0.45)';
-            argEl.style.background      = 'rgba(0,0,0,0.18)';
-            argEl.style.borderRadius    = '7px';
-            argEl.style.padding         = '1px 5px';
+            argEl.style.textShadow      = '0 1px 2px rgba(0,0,0,0.5)';
+            argEl.style.background      = 'rgba(0,0,0,0.22)';
+            argEl.style.borderRadius    = '6px';
+            argEl.style.padding         = '1px 4px';
             argEl.style.whiteSpace      = 'nowrap';
             argEl.style.pointerEvents   = 'none';
-            argEl.style.flexShrink      = '0';
         }
 
         // Cursor hint: right edge → ew-resize, body → grab.
