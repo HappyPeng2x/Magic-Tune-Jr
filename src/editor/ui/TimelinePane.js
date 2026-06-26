@@ -43,19 +43,22 @@ const RESIZE_HANDLE_W = 8;
 // stylesheet will override them with polished values.
 
 export const CLIP_COLOR = {
+    // Events / Triggers (Scratch Jr yellow)
+    onflag: '#FFDC35', onclick: '#FFDC35', ontouch: '#FFDC35',
+    onmessage: '#FFDC35', message: '#FFDC35',
     // Motion  (Scratch Jr blue)
     forward: '#4C97FF', back: '#4C97FF',
     up:      '#4C97FF', down: '#4C97FF',
     left:    '#4C97FF', right: '#4C97FF',
     home:    '#4C97FF', hop:   '#4C97FF',
-    // Control (Scratch Jr orange)
-    wait:     '#FFAB19', setspeed: '#FFAB19', stopmine: '#FFAB19',
     // Looks   (Scratch Jr purple/pink)
     say:      '#CF63CF', show:  '#CF63CF', hide:   '#CF63CF',
     grow:     '#CF63CF', shrink:'#CF63CF', same:   '#CF63CF',
     setcolor: '#CF63CF',
     // Sound   (Scratch Jr green)
     playsnd: '#59C059', playusersnd: '#59C059',
+    // Control (Scratch Jr orange)
+    wait:     '#FFAB19', setspeed: '#FFAB19', stopmine: '#FFAB19', repeat: '#FFAB19',
     // Scene / end (Scratch Jr red)
     stopall: '#FF6680', gotopage: '#FF6680',
 };

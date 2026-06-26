@@ -7,6 +7,11 @@ import Block from '../blocks/Block';
 import BlockSpecs from '../blocks/BlockSpecs';
 import TimelinePalette from './TimelinePalette';
 import {CLIP_COLOR, BLOCK_ICON} from './TimelinePane';
+
+// One entry per Scratch Jr category in actual palette order:
+// 0=Events/Triggers, 1=Motion, 2=Looks, 3=Sound, 4=Control
+const CAT_COLORS = ['#FFDC35', '#4C97FF', '#CF63CF', '#59C059', '#FFAB19'];
+const CAT_ICONS  = ['Forever', 'Foward',  'Grow',    'Speaker', 'Wait'];
 import Undo from './Undo';
 import OS from '../../tablet/OS';
 import MediaLib from '../../tablet/MediaLib';
@@ -63,6 +68,7 @@ export default class Palette {
         var sel = newHTML('div', 'categoryselector', parent);
         sel.setAttribute('id', 'selectors');
         var bkg = newHTML('div', 'catbkg', sel);
+        bkg.style.display = 'none'; // not needed in candy design
         newHTML('div', 'catimage', bkg);
         var leftPx = 15 * scaleMultiplier;
         var widthPx = 54 * scaleMultiplier;
@@ -298,37 +304,77 @@ export default class Palette {
     }
 
     static createSelector (parent, n, dx, dy, spec) {
-        var pxWidth = 51 * scaleMultiplier;
+        var pxWidth  = 51 * scaleMultiplier;
         var pxHeight = 57 * scaleMultiplier;
-        var div = newDiv(parent, dx, dy, pxWidth, pxHeight, {
-            position: 'absolute'
-        });
+        var div = newDiv(parent, dx, dy, pxWidth, pxHeight, { position: 'absolute' });
         div.index = n;
-        var officon = spec[1].cloneNode(true);
-        officon.width = pxWidth;
-        officon.height = pxHeight;
-        div.appendChild(officon);
-        setProps(officon.style, {
-            position: 'absolute',
-            zIndex: 6,
-            visibility: 'visible'
-        });
-        var onicon = spec[0].cloneNode(true);
-        onicon.width = pxWidth;
-        onicon.height = pxHeight;
-        div.appendChild(onicon);
         div.bkg = spec[2];
-        setProps(onicon.style, {
-            position: 'absolute',
-            zIndex: 8,
-            visibility: 'hidden'
-        });
-        div.ontouchstart = function (evt) {
-            Palette.clickOnCategory(evt);
-        };
-        div.onmousedown = function (evt) {
-            Palette.clickOnCategory(evt);
-        };
+
+        // Keep the original canvas children in the DOM but hidden, because
+        // selectCategory() and showSelectors() reference childNodes[0/1].
+        var officon = spec[1].cloneNode(true);
+        officon.style.display = 'none';
+        div.appendChild(officon); // childNodes[0]
+
+        var onicon = spec[0].cloneNode(true);
+        onicon.style.display = 'none';
+        div.appendChild(onicon); // childNodes[1]
+
+        // Candy tab — the actual visible element.
+        var tab = document.createElement('div');
+        var tabSize = Math.round(44 * scaleMultiplier);
+        tab.style.position        = 'absolute';
+        tab.style.left            = Math.round((pxWidth  - tabSize) / 2) + 'px';
+        tab.style.top             = Math.round((pxHeight - tabSize) / 2) + 'px';
+        tab.style.width           = tabSize + 'px';
+        tab.style.height          = tabSize + 'px';
+        tab.style.borderRadius    = '12px';
+        tab.style.display         = 'flex';
+        tab.style.flexDirection   = 'column';
+        tab.style.alignItems      = 'center';
+        tab.style.justifyContent  = 'center';
+        tab.style.pointerEvents   = 'none'; // clicks fall through to parent div
+        tab.style.transition      = 'opacity 0.12s, box-shadow 0.12s';
+        div.appendChild(tab); // childNodes[2]
+        div._candyTab = tab;
+
+        Palette._updateCandyTab(tab, n, false);
+
+        div.ontouchstart = function (evt) { Palette.clickOnCategory(evt); };
+        div.onmousedown  = function (evt) { Palette.clickOnCategory(evt); };
+    }
+
+    // Apply active/inactive style to a candy category tab.
+    static _updateCandyTab (tab, catIndex, isActive) {
+        var color = CAT_COLORS[catIndex] || '#888';
+
+        // Rebuild icon each time (cheap — one img element).
+        while (tab.firstChild) tab.removeChild(tab.firstChild);
+
+        tab.style.backgroundColor = color;
+        tab.style.backgroundImage =
+            'linear-gradient(to bottom, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0) 55%)';
+
+        if (isActive) {
+            tab.style.border    = '3px solid rgba(255,255,255,0.90)';
+            tab.style.boxShadow = '0 0 0 2px ' + color + ', 0 4px 12px rgba(0,0,0,0.35)';
+            tab.style.opacity   = '1';
+        } else {
+            tab.style.border    = '2px solid rgba(255,255,255,0.50)';
+            tab.style.boxShadow = '0 2px 6px rgba(0,0,0,0.20)';
+            tab.style.opacity   = '0.65';
+        }
+
+        var iconName = CAT_ICONS[catIndex];
+        if (iconName) {
+            var img = document.createElement('img');
+            img.src              = 'assets/blockicons/' + iconName + '.svg';
+            img.style.width      = Math.round(24 * scaleMultiplier) + 'px';
+            img.style.height     = Math.round(24 * scaleMultiplier) + 'px';
+            img.style.filter     = 'brightness(0) invert(1)';
+            img.style.pointerEvents = 'none';
+            tab.appendChild(img);
+        }
     }
 
     static getPaletteSize () {
@@ -344,20 +390,22 @@ export default class Palette {
         e.preventDefault();
         ScratchJr.unfocus(e);
         var t = e.target;
-        ScratchAudio.sndFX('keydown.wav');
-        var index = t.parentNode ? t.parentNode.index : 2;
+        try { ScratchAudio.sndFX('keydown.wav'); } catch (ex) { /* no audio in browser */ }
+        // Walk up to the selector div that carries the .index property.
+        var el = t;
+        while (el && el.index === undefined) el = el.parentNode;
+        var index = (el && el.index !== undefined) ? el.index : 2;
         Palette.selectCategory(index);
     }
 
     static selectCategory (n) {
         var div = gn('selectors');
-        // set the icons for text or sprite
         numcat = n;
         var currentSel = div.childNodes[n + 1];
         for (var i = 1; i < div.childElementCount; i++) {
             var sel = div.childNodes[i];
-            sel.childNodes[0].style.visibility = (sel.index != n) ? 'visible' : 'hidden';
-            sel.childNodes[1].style.visibility = (sel.index == n) ? 'visible' : 'hidden';
+            // Canvas children are hidden; update the candy tab instead.
+            if (sel._candyTab) Palette._updateCandyTab(sel._candyTab, sel.index, sel.index === n);
         }
         var pal = gn('palette');
         gn('blockspalette').style.background = currentSel.bkg;
