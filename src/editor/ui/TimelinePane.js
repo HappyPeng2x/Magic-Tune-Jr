@@ -1,5 +1,6 @@
 import ScratchJr from '../ScratchJr';
 import TransportControls from './TransportControls';
+import Library from './Library';
 import {newHTML, gn} from '../../utils/lib';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -218,6 +219,29 @@ export default class TimelinePane {
         for (var i = 0; i < sprites.length; i++) {
             TimelinePane._buildRow(sprites[i], labelList, trackList, totalPx);
         }
+
+        // Add-sprite button sits immediately below the last sprite row.
+        // CSS background approach: scale the 178x79 PNG to 44px tall, center it
+        // over a 44x44 white circle so the transparent edges don't show the
+        // green label-list background.
+        var addBtn = document.createElement('div');
+        addBtn.style.backgroundImage = 'url(assets/ui/newsprite2.png)';
+        addBtn.style.backgroundSize = 'auto 44px';
+        addBtn.style.backgroundPosition = 'center center';
+        addBtn.style.backgroundRepeat = 'no-repeat';
+        addBtn.style.backgroundColor = 'white';
+        addBtn.style.borderRadius = '50%';
+        addBtn.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
+        addBtn.style.width = '44px';
+        addBtn.style.height = '44px';
+        addBtn.style.margin = '6px auto';
+        addBtn.style.display = 'block';
+        addBtn.style.cursor = 'pointer';
+        addBtn.style.transition = 'transform 0.1s';
+        addBtn.onclick = function () { Library.open('costumes'); };
+        addBtn.onmouseenter = function () { addBtn.style.transform = 'scale(1.1)'; };
+        addBtn.onmouseleave = function () { addBtn.style.transform = ''; };
+        labelList.appendChild(addBtn);
     }
 
     // Move the playhead to match the current runtime time.
@@ -269,6 +293,25 @@ export default class TimelinePane {
         label.style.gap          = '4px';
         label.style.padding      = '0 4px';
         label.style.fontSize     = '11px';
+        label.style.cursor       = 'pointer';
+
+        // Clicking the label selects this sprite (so palette shows its blocks).
+        label.onclick = (function (s) {
+            return function () {
+                if (ScratchJr.stage && ScratchJr.stage.currentPage) {
+                    ScratchJr.stage.currentPage.setCurrentSprite(s);
+                    TimelinePane.refresh();
+                }
+            };
+        })(spr);
+
+        // Highlight the currently selected sprite.
+        var isActive = ScratchJr.stage && ScratchJr.stage.currentPage &&
+            ScratchJr.stage.currentPage.currentSpriteName === spr.id;
+        if (isActive) {
+            label.style.background  = '#A5D6A7';
+            label.style.borderLeft  = '4px solid #43A047';
+        }
 
         if (spr.img) {
             var thumb = document.createElement('img');

@@ -18,6 +18,8 @@ let stage = undefined;
 let defaultSprite = undefined;
 let stagecolor = undefined;
 const dragginLayer = 7000;
+const _backButtonCallbacks = [];
+let _onHold = false;
 let shaking = undefined;
 let stopShaking = undefined;
 let activeFocus = undefined;
@@ -38,7 +40,8 @@ export default class ScratchJr {
     static set shaking (s)        { shaking = s; }
     static get stopShaking ()     { return stopShaking; }
     static set stopShaking (s)    { stopShaking = s; }
-    static get onHold ()          { return false; }
+    static get onHold ()          { return _onHold; }
+    static set onHold (v)         { _onHold = v; }
     static get userStart ()       { return false; }
     static get activeFocus ()     { return activeFocus; }
     static set activeFocus (v)    { activeFocus = v; }
@@ -102,6 +105,16 @@ export default class ScratchJr {
     static log ()             {}
     static getTime ()         { return 0; }
     static saveProject ()     {}
+
+    // Restores global mouse/touch handlers after the library overlay closes.
+    static editorEvents () {
+        window.ontouchstart = ScratchJr.unfocus;
+        window.onmousedown  = ScratchJr.unfocus;
+        window.ontouchend   = undefined;
+        window.onmouseup    = undefined;
+    }
+
+    static get onBackButtonCallback () { return _backButtonCallbacks; }
 
     // Runtime control — invoked by UI stage buttons and keyboard shortcuts.
     static stopStrips () {

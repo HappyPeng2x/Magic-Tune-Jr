@@ -18,8 +18,13 @@ export default class OS {
 
     // Database stubs — project loading bypassed in appinit.
     static stmt (json, fcn) { if (fcn) fcn(null); }
-    static query (json, fcn) { if (fcn) fcn([]); }
+    static query (json, fcn) { if (fcn) fcn('[]'); }  // callers expect a JSON string
     static setfield (db, id, fieldname, val, fcn) { if (fcn) fcn(); }
+
+    // Audio stubs — no tablet audio in browser.
+    static playSound () {}
+    static stopSound () {}
+    static setSoundVolume () {}
 
     // Media stubs.
     static getmedia (file, fcn) { if (fcn) fcn(null); }

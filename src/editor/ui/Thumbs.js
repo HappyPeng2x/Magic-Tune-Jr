@@ -5,6 +5,7 @@
 import ScratchJr from '../ScratchJr';
 import Palette from './Palette';
 import Page from '../engine/Page';
+import TimelinePane from './TimelinePane';
 // ScriptsPane is replaced by the timeline; stub out the calls used here.
 var ScriptsPane = {setActiveScript: function () {}, updateScriptsPageBlocks: function () {}};
 import Undo from './Undo';
@@ -420,6 +421,7 @@ export default class Thumbs {
             ScratchJr.stage.currentPage.setCurrentSprite(undefined);
         }
         UI.resetSpriteLibrary();
+        TimelinePane.refresh();
     }
 
     static updateSprite (spr) {
@@ -437,6 +439,7 @@ export default class Thumbs {
             Thumbs.selectThisSprite(spr);
             UI.resetSpriteLibrary();
         }
+        TimelinePane.refresh();
     }
 
     /////////////////////////////////////////////

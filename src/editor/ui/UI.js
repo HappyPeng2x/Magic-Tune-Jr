@@ -480,24 +480,19 @@ export default class UI {
     static layoutLibrary (sl) {
         var sprites = newHTML('div', 'thumbpanel', sl);
         sprites.setAttribute('id', 'library');
-        //scrolling area
+        sprites.style.display = 'none'; // hidden — sprites listed in the timeline instead
+
+        // Keep DOM structure for Thumbs.js compatibility
         var p = newHTML('div', 'spritethumbs', sprites);
         var div = newHTML('div', 'spritecc', p);
         div.setAttribute('id', 'spritecc');
         div.ontouchstart = UI.spriteThumbsActions;
         div.onmousedown = UI.spriteThumbsActions;
 
-        // scrollbar
         var sb = newHTML('div', 'scrollbar', sprites);
         sb.setAttribute('id', 'scrollbar');
         var sbthumb = newHTML('div', 'sbthumb', sb);
         sbthumb.setAttribute('id', 'sbthumb');
-
-        // new sprite
-        if (ScratchJr.isEditable()) {
-            var ns = newHTML('div', 'addsprite', sprites);
-            ns.onclick = UI.addSprite;
-        }
     }
 
     static mascotData (page) {
