@@ -12,7 +12,7 @@
 
 import ScratchJr from '../ScratchJr';
 import Events from '../../utils/Events';
-import TimelinePane, {PX_PER_MS, TRACK_H, rowHeight} from './TimelinePane';
+import TimelinePane, {PX_PER_MS, TRACK_H, rowHeight, styleAsCandyBlock} from './TimelinePane';
 import {durationMs} from '../engine/TimelineDuration';
 import {frame, gn, localx, localy} from '../../utils/lib';
 
@@ -38,7 +38,9 @@ export default class TimelinePalette {
         var my = Events.dragmousey - frame.offsetTop -
                  localy(Events.dragthumbnail, Events.dragmousey);
         var spr = ScratchJr.getSprite ? ScratchJr.getSprite() : null;
-        Events.dragcanvas = Events.dragthumbnail.owner.duplicateBlock(mx, my, spr).div;
+        var dragBlock = Events.dragthumbnail.owner.duplicateBlock(mx, my, spr);
+        Events.dragcanvas = dragBlock.div;
+        styleAsCandyBlock(Events.dragcanvas, dragBlock, dragBlock.blocktype);
         Events.dragcanvas.style.zIndex = ScratchJr.dragginLayer;
         Events.dragDiv.appendChild(Events.dragcanvas);
     }

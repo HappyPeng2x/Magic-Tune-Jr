@@ -1,7 +1,7 @@
 import ScratchJr from '../ScratchJr';
 import TransportControls from './TransportControls';
 import Library from './Library';
-import {newHTML, gn} from '../../utils/lib';
+import {newHTML, gn, setProps, scaleMultiplier} from '../../utils/lib';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -92,6 +92,68 @@ export const BLOCK_ICON = {
     forever:     'Forever',
     setspeed:    'speed1',
 };
+
+// Replace the Scratch Jr lego-puzzle canvas rendering with a candy-style
+// square block matching the timeline clip design. Shared by the palette
+// (Palette.newScaledBlock) and the floating drag ghost (TimelinePalette),
+// so a block looks the same in the palette and while being dragged.
+export function styleAsCandyBlock (div, block, op) {
+    // Use display:none (not visibility:hidden) so that Block.lift(), which
+    // sets this.shadow.style.visibility = 'visible', cannot un-hide the
+    // canvas puzzle-piece shadow after we've already hidden it.
+    for (var i = 0; i < div.childElementCount; i++) {
+        div.childNodes[i].style.display = 'none';
+    }
+
+    // 54 px fits inside the 64 px palette bar with 5 px top padding.
+    var size  = Math.round(54 * scaleMultiplier);
+    var color = CLIP_COLOR[op] || DEFAULT_CLIP_COLOR;
+
+    setProps(div.style, {
+        width:           size + 'px',
+        height:          size + 'px',
+        backgroundColor: color,
+        backgroundImage: 'linear-gradient(to bottom, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0) 55%)',
+        borderRadius:    '14px',
+        border:          '2px solid rgba(255,255,255,0.65)',
+        boxShadow:       '0 4px 10px rgba(0,0,0,0.28)',
+        display:         'flex',
+        flexDirection:   'column',
+        alignItems:      'center',
+        justifyContent:  'center',
+        gap:             '4px',
+        cursor:          'grab',
+        boxSizing:       'border-box',
+    });
+
+    var iconName = BLOCK_ICON[op];
+    var iconSize = Math.round(size * 0.50);
+    if (iconName) {
+        var iconEl = document.createElement('img');
+        iconEl.src              = 'assets/blockicons/' + iconName + '.svg';
+        iconEl.style.width      = iconSize + 'px';
+        iconEl.style.height     = iconSize + 'px';
+        iconEl.style.filter     = 'brightness(0) invert(1)';
+        iconEl.style.pointerEvents = 'none';
+        div.appendChild(iconEl);
+    }
+
+    var arg = (block && block.getArgValue) ? block.getArgValue() : null;
+    var argStr = (arg !== null && arg !== undefined) ? String(arg) : '';
+    if (argStr !== '' && argStr !== 'undefined' && argStr !== 'null') {
+        var argEl = document.createElement('span');
+        argEl.textContent           = argStr;
+        argEl.style.fontSize        = '13px';
+        argEl.style.fontWeight      = 'bold';
+        argEl.style.color           = '#fff';
+        argEl.style.textShadow      = '0 1px 2px rgba(0,0,0,0.5)';
+        argEl.style.background      = 'rgba(0,0,0,0.22)';
+        argEl.style.borderRadius    = '8px';
+        argEl.style.padding         = '1px 7px';
+        argEl.style.pointerEvents   = 'none';
+        div.appendChild(argEl);
+    }
+}
 
 // ── Module-level state ────────────────────────────────────────────────────────
 
