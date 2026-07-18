@@ -6,7 +6,8 @@ import UI from './UI';
 import Page from '../engine/Page';
 import Sprite from '../engine/Sprite';
 import OS from '../../tablet/OS';
-import IO from '../../tablet/IO';
+import * as Projects from '../../platform/browser/ProjectRepository';
+import IO from '../../tablet/BrowserIO';
 import Paint from '../../painteditor/Paint';
 import SVG2Canvas from '../../utils/SVG2Canvas';
 import {frame, gn, newHTML, scaleMultiplier, getIdFor,
@@ -405,12 +406,7 @@ export default class Project {
     // Determine if thumbnailMD5 is unique to projectID
     // callback(true/false)
     static thumbnailUnique (thumbnailMD5, projectID, callback) {
-        var json = {};
-        json.cond = 'deleted = ? AND id != ? AND gallery IS NULL';
-        json.items = ['name', 'thumbnail', 'id'];
-        json.values = ['NO', projectID];
-        IO.query(OS.database, json, function (result) {
-            var pdata = JSON.parse(result);
+        Projects.find({deleted: 'NO', excludeId: projectID, galleryIsNull: true}).then(function (pdata) {
             var isUnique = true;
             for (var p = 0; p < pdata.length; p++) {
                 var thispdata = IO.parseProjectData(pdata[p]);
@@ -467,6 +463,7 @@ export default class Project {
 
         function saveDone () {
             saving = false;
+            Alert.close();
             if (whenDone) {
                 whenDone();
             }

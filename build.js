@@ -1,24 +1,47 @@
 #!/usr/bin/env node
-// Uses scratchjr's webpack 4 installation directly.
-process.chdir(__dirname);
+const esbuild = require('esbuild');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
-const webpack = require('./scratchjr/node_modules/webpack');
-const config  = require('./webpack.config.js');
-const watch   = process.argv.includes('--watch');
+const watch = process.argv.includes('--watch');
+const output = path.resolve(__dirname, 'dist/app.bundle.js');
+const options = {
+    entryPoints: [path.resolve(__dirname, 'src/entry/app.js')],
+    outfile: output,
+    bundle: true,
+    sourcemap: true,
+    target: ['es2017'],
+    format: 'iife',
+    platform: 'browser',
+    preserveSymlinks: true,
+    logLevel: 'info',
+    define: { global: 'globalThis' }
+};
 
-config.mode = 'development';
-
-if (watch) {
-    const compiler = webpack(config);
-    compiler.watch({}, (err, stats) => {
-        if (err) { console.error(err); return; }
-        console.log(stats.toString({colors: true, modules: false}));
-    });
-    console.log('Watching for changes...');
-} else {
-    webpack(config, (err, stats) => {
-        if (err) { console.error(err); process.exit(1); }
-        console.log(stats.toString({colors: true, modules: false}));
-        if (stats.hasErrors()) process.exit(1);
-    });
+function writeBuildId () {
+    const hash = crypto.createHash('sha256').update(fs.readFileSync(output)).digest('hex').slice(0, 20);
+    fs.writeFileSync(path.resolve(__dirname, 'dist/build-id.js'),
+        'window.MAGIC_TUNE_BUILD_ID = ' + JSON.stringify(hash) + ';\n');
 }
+
+async function main () {
+    if (watch) {
+        const context = await esbuild.context(Object.assign({}, options, {
+            plugins: [{
+                name: 'build-id',
+                setup (build) { build.onEnd(result => { if (!result.errors.length) writeBuildId(); }); }
+            }]
+        }));
+        await context.watch();
+        console.log('Watching for changes...');
+    } else {
+        await esbuild.build(options);
+        writeBuildId();
+    }
+}
+
+main().catch(function (err) {
+    console.error(err);
+    process.exit(1);
+});

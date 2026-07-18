@@ -9,7 +9,9 @@ import Prims from './engine/Prims';
 import Library from './ui/Library';
 import ScratchAudio from '../utils/ScratchAudio';
 import OS from '../tablet/OS';
-import IO from '../tablet/IO';
+import * as Projects from '../platform/browser/ProjectRepository';
+import * as Bundles from '../platform/browser/ProjectBundle';
+import IO from '../tablet/BrowserIO';
 import Paint from '../painteditor/Paint';
 import Events from '../utils/Events';
 import Grid from './ui/Grid';
@@ -30,6 +32,7 @@ let activeFocus = undefined;
 let keypad = undefined;
 let textForm = undefined;
 let changed = false;
+let changeVersion = 0;
 let editfirst = false;
 
 export default class ScratchJr {
@@ -55,7 +58,16 @@ export default class ScratchJr {
     static get activeFocus ()     { return activeFocus; }
     static set activeFocus (v)    { activeFocus = v; }
     static get changed ()         { return changed; }
-    static set changed (v)        { changed = v; }
+    static set changed (v) {
+        changed = v;
+        if (v) {
+            changeVersion++;
+            ScratchJr.scheduleAutosave();
+        } else if (ScratchJr._autosaveTimeout) {
+            window.clearTimeout(ScratchJr._autosaveTimeout);
+            ScratchJr._autosaveTimeout = null;
+        }
+    }
     static get storyStarted ()    { return false; }
     static set storyStarted (v)   {}
 
@@ -103,7 +115,7 @@ export default class ScratchJr {
     }
 
     static openInitialProject (whenDone) {
-        OS.listProjects(function (projects) {
+        Projects.list().then(function (projects) {
             var preferredId = window.localStorage.magicTuneCurrentProject;
             var project = null;
             if (projects && projects.length) {
@@ -129,7 +141,7 @@ export default class ScratchJr {
             }, function (id) {
                 currentProject = id;
                 window.localStorage.magicTuneCurrentProject = id;
-                OS.getProjectRecord(id, function (record) {
+                Projects.get(id).then(function (record) {
                     currentProjectData = record;
                     whenDone();
                 });
@@ -178,12 +190,22 @@ export default class ScratchJr {
 
     static startAutosave () {
         if (ScratchJr._autosaveTimer) window.clearInterval(ScratchJr._autosaveTimer);
+        // Debounced saves handle normal editing; this slower interval is only a safety net.
         ScratchJr._autosaveTimer = window.setInterval(function () {
             ScratchJr.saveProject();
-        }, 15000);
-        window.addEventListener('pagehide', function () {
+        }, 60000);
+        if (!ScratchJr._pagehideInstalled) {
+            ScratchJr._pagehideInstalled = true;
+            window.addEventListener('pagehide', function () { ScratchJr.saveProject(); });
+        }
+    }
+
+    static scheduleAutosave () {
+        if (ScratchJr._autosaveTimeout) window.clearTimeout(ScratchJr._autosaveTimeout);
+        ScratchJr._autosaveTimeout = window.setTimeout(function () {
+            ScratchJr._autosaveTimeout = null;
             ScratchJr.saveProject();
-        });
+        }, 1500);
     }
 
     static getSprite () {
@@ -199,7 +221,7 @@ export default class ScratchJr {
     static getBlocks ()       { return []; }
 
     static isEditable ()      { return true; }
-    static storyStart ()      { changed = true; }
+    static storyStart ()      { ScratchJr.changed = true; }
     static log ()             {}
     static getTime ()         { return 0; }
     static saveProject (e, onDone) {
@@ -208,9 +230,10 @@ export default class ScratchJr {
             return;
         }
         if (!changed && !onDone) return;
+        var savingVersion = changeVersion;
         Project.prepareToSave(currentProject, function () {
-            changed = false;
-            OS.getProjectRecord(currentProject, function (record) {
+            if (savingVersion === changeVersion) changed = false;
+            Projects.get(currentProject).then(function (record) {
                 currentProjectData = record;
                 if (onDone) onDone();
             });
@@ -311,7 +334,7 @@ export default class ScratchJr {
 
         var list = document.createElement('div');
         panel.appendChild(list);
-        OS.listProjects(function (projects) {
+        Projects.list().then(function (projects) {
             if (!projects.length) {
                 var empty = document.createElement('p');
                 empty.textContent = 'No saved projects yet.';
@@ -376,8 +399,15 @@ export default class ScratchJr {
         });
         addRowButton('Delete', function () {
             if (!window.confirm('Delete "' + (project.name || 'Untitled Tune') + '"?')) return;
-            OS.setfield(OS.database, project.id, 'deleted', 'YES', function () {
-                if (currentProject === project.id) window.location.reload();
+            Projects.update(project.id, {deleted: 'YES'}).then(function () {
+                if (currentProject === project.id) {
+                    Project.metadata.deleted = 'YES';
+                    Projects.list().then(function (remaining) {
+                        if (remaining.length) ScratchJr.switchProject(remaining[0].id);
+                        else IO.createProject({name: 'Untitled Tune', version: ScratchJr.version, isgift: '0'},
+                            function (id) { ScratchJr.switchProject(id); });
+                    });
+                }
                 row.parentNode.removeChild(row);
             });
         });
@@ -403,9 +433,27 @@ export default class ScratchJr {
     }
 
     static switchProject (id) {
-        currentProject = id;
-        window.localStorage.magicTuneCurrentProject = id;
-        window.location.reload();
+        if (!id || id === currentProject) return;
+        ScratchJr.saveProject(null, function () {
+            Projects.get(id).then(function (record) {
+                if (!record) throw new Error('Project not found: ' + id);
+                if (runtime) runtime.stopThreads();
+                if (ScratchJr._autosaveTimeout) window.clearTimeout(ScratchJr._autosaveTimeout);
+                Project.clear();
+                currentProject = id;
+                currentProjectData = record;
+                window.localStorage.magicTuneCurrentProject = id;
+                ScratchJr.loadCurrentProject(function () {
+                    Palette.selectCategory(1);
+                    Paint.layout();
+                    if (stage && stage.currentPage) stage.currentPage.update();
+                    TimelinePane.refresh();
+                    changed = false;
+                });
+            }).catch(function (err) {
+                window.alert('Could not open project: ' + err.message);
+            });
+        });
     }
 
     static exportCurrentProject () {
@@ -413,7 +461,7 @@ export default class ScratchJr {
     }
 
     static exportProject (id) {
-        OS.exportProjectBundle(id, function (bundle) {
+        Bundles.exportProject(id).then(function (bundle) {
             if (!bundle) return;
             var name = ((bundle.project && bundle.project.name) || 'magictunejr').replace(/[^a-z0-9-_]+/gi, '_');
             var blob = new Blob([JSON.stringify(bundle)], {type: 'application/json'});
@@ -439,8 +487,10 @@ export default class ScratchJr {
             reader.onload = function () {
                 try {
                     var bundle = JSON.parse(reader.result);
-                    OS.importProjectBundle(bundle, function (project) {
-                        if (project && project.id) ScratchJr.switchProject(project.id);
+                    Bundles.importProject(bundle).then(function (project) {
+                        ScratchJr.switchProject(project.id);
+                    }).catch(function (err) {
+                        window.alert('Could not import project: ' + err.message);
                     });
                 } catch (err) {
                     window.alert('Could not import project: ' + err.message);

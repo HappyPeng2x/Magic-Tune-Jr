@@ -188,12 +188,13 @@
     window.scratchJrPage = 'editor';
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
-            navigator.serviceWorker.register('sw.js').catch(function (err) {
+            navigator.serviceWorker.register('sw.js?v=' + encodeURIComponent(window.MAGIC_TUNE_BUILD_ID || 'dev')).catch(function (err) {
                 console.warn('Service worker registration failed:', err);
             });
         });
     }
 </script>
+<script type="text/javascript" src="dist/build-id.js"></script>
 <script type="text/javascript" src="dist/app.bundle.js"></script>
 </head>
 <body style="background: white; margin: 0; padding: 0;">

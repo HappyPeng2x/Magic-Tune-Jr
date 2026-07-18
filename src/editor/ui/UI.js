@@ -14,7 +14,8 @@ import TimelinePane from './TimelinePane';
 import Undo from './Undo';
 import Library from './Library';
 import OS from '../../tablet/OS';
-import IO from '../../tablet/IO';
+import * as Projects from '../../platform/browser/ProjectRepository';
+import IO from '../../tablet/BrowserIO';
 import MediaLib from '../../tablet/MediaLib';
 import Paint from '../../painteditor/Paint';
 import Events from '../../utils/Events';
@@ -92,9 +93,9 @@ export default class UI {
         var sl = newHTML('div', 'leftpanel', div);
         var flip = newHTML('div', 'flipme', sl);
         flip.setAttribute('id', 'flip');
-        flip.onclick = function (evt) {
-            ScratchJr.saveAndFlip(evt);
-        }; // move to project
+        flip.onclick = function () {
+            ScratchJr.saveProject(null, ScratchJr.showProjectPicker);
+        };
         UI.layoutLibrary(sl);
     }
 
@@ -377,7 +378,7 @@ export default class UI {
         }
         Project.metadata.name = pname;
         ScratchJr.changed = true;
-        OS.setfield(OS.database, Project.metadata.id, 'name', pname);
+        Projects.update(Project.metadata.id, {name: pname});
         if (!dontHide) {
             ScratchAudio.sndFX('exittap.wav');
             gn('infobox').className = 'infobox fade';

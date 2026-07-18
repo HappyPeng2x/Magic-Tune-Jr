@@ -3,6 +3,7 @@ const APP_SHELL = [
     './',
     './index.html',
     './manifest.webmanifest',
+    './dist/build-id.js',
     './dist/app.bundle.js',
     './media.json',
     './localizations/en.json',
@@ -76,6 +77,13 @@ self.addEventListener('fetch', event => {
         return;
     }
 
+    // Always discover the newest generated build ID. index.html uses it in
+    // the service-worker URL, causing a fresh install for each application build.
+    if (url.pathname.endsWith('/dist/build-id.js')) {
+        event.respondWith(networkFirst(request));
+        return;
+    }
+
     if (shouldRuntimeCache(url.pathname)) {
         event.respondWith(cacheFirst(request));
         return;
@@ -105,4 +113,14 @@ function cacheFirst (request) {
             return response;
         });
     });
+}
+
+function networkFirst (request) {
+    return fetch(request).then(response => {
+        if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_VERSION).then(cache => cache.put(request, copy));
+        }
+        return response;
+    }).catch(() => caches.match(request));
 }
