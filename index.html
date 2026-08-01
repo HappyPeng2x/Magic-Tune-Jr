@@ -183,6 +183,171 @@
     box-shadow: 0 0 4px rgba(255,23,68,0.5);
 }
 
+/* ── My Creations full-screen picker ─────────────────────────────────── */
+#mtj-projects-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 45000;
+    background: #FFFBF0;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Comic Sans MS', 'Chalkboard SE', 'Arial Rounded MT Bold', sans-serif;
+    color: #5D4037;
+}
+.mtj-projects-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #FFD54F 0%, #FFB300 100%);
+    border-bottom: 4px solid #FFA000;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+.mtj-projects-title {
+    flex: 1;
+    font-size: 28px;
+    font-weight: bold;
+    text-shadow: 0 2px 0 rgba(255,255,255,0.5);
+}
+.mtj-projects-close {
+    padding: 10px 20px;
+    border-radius: 24px;
+    background: #EF5350;
+    color: #fff;
+    font-size: 20px;
+    font-weight: bold;
+    border: 3px solid rgba(255,255,255,0.8);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+    cursor: pointer;
+    user-select: none;
+}
+.mtj-projects-close:active { transform: scale(0.93); }
+
+.mtj-projects-grid {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 24px;
+    align-content: start;
+}
+
+.mtj-project-tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #fff;
+    border-radius: 20px;
+    padding: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    border: 4px solid transparent;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s;
+    touch-action: none;
+}
+.mtj-project-tile:active { transform: scale(0.96); }
+.mtj-project-tile.mtj-current { border-color: #42A5F5; }
+
+.mtj-project-thumb {
+    width: 100%;
+    height: 110px;
+    border-radius: 14px;
+    background-color: #F5F2F7;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid #E0E0E0;
+    margin-bottom: 8px;
+}
+
+.mtj-project-title {
+    font-size: 15px;
+    font-weight: bold;
+    text-align: center;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: 0;
+}
+
+.mtj-new-tile {
+    background: linear-gradient(135deg, #A5D6A7 0%, #66BB6A 100%);
+    color: #fff;
+    justify-content: center;
+    min-height: 158px;
+}
+.mtj-new-tile .mtj-new-plus {
+    font-size: 48px;
+    font-weight: bold;
+    line-height: 1;
+    text-shadow: 0 2px 0 rgba(0,0,0,0.15);
+}
+.mtj-new-tile .mtj-project-title { color: #fff; margin-top: 4px; }
+
+.mtj-delete-badge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #EF5350;
+    color: #fff;
+    font-size: 18px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    border: 3px solid #fff;
+    visibility: hidden;
+    z-index: 2;
+}
+
+.mtj-projects-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    font-size: 18px;
+    color: #8D6E63;
+    margin-top: 40px;
+}
+
+/* ── Home/Save/Export/Import icon buttons, one row, top of left panel ─── */
+.project-actions-row {
+    position: absolute;
+    top: 0.8vh;
+    left: 1vw;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.7vw;
+    z-index: 2;
+}
+.side-icon-btn {
+    box-sizing: border-box;
+    width: 5vw;
+    height: 5vw;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid rgba(255,255,255,0.8);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.25);
+    cursor: pointer;
+    user-select: none;
+    flex: 0 0 auto;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+.side-icon-btn:hover  { filter: brightness(1.1); transform: scale(1.05); }
+.side-icon-btn:active { transform: scale(0.93); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.side-icon-btn svg { width: 55%; height: 55%; }
+
 </style>
 <script>
     window.scratchJrPage = 'editor';

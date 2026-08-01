@@ -7,8 +7,8 @@ import Palette from './ui/Palette';
 import BlockSpecs from './blocks/BlockSpecs';
 import Prims from './engine/Prims';
 import Library from './ui/Library';
+import ProjectsScreen from './ui/ProjectsScreen';
 import ScratchAudio from '../utils/ScratchAudio';
-import OS from '../tablet/OS';
 import * as Projects from '../platform/browser/ProjectRepository';
 import * as Bundles from '../platform/browser/ProjectBundle';
 import IO from '../tablet/BrowserIO';
@@ -34,6 +34,7 @@ let textForm = undefined;
 let changed = false;
 let changeVersion = 0;
 let editfirst = false;
+let inFullscreen = false;
 
 export default class ScratchJr {
     static get runtime ()         { return runtime; }
@@ -54,6 +55,8 @@ export default class ScratchJr {
     static set stopShaking (s)    { stopShaking = s; }
     static get onHold ()          { return _onHold; }
     static set onHold (v)         { _onHold = v; }
+    static get inFullscreen ()    { return inFullscreen; }
+    static set inFullscreen (v)   { inFullscreen = v; }
     static get userStart ()       { return false; }
     static get activeFocus ()     { return activeFocus; }
     static set activeFocus (v)    { activeFocus = v; }
@@ -95,7 +98,6 @@ export default class ScratchJr {
                     return;
                 }
                 UI.layout();
-                ScratchJr.installProjectToolbar();
                 ScratchJr.loadCurrentProject(function () {
                     Palette.selectCategory(1);
                     setTimeout(function () { Palette.selectCategory(1); }, 100);
@@ -240,48 +242,6 @@ export default class ScratchJr {
         });
     }
 
-    static installProjectToolbar () {
-        if (document.getElementById('browser-project-toolbar')) return;
-        var bar = document.createElement('div');
-        bar.id = 'browser-project-toolbar';
-        bar.style.cssText = [
-            'position:absolute',
-            'right:8px',
-            'top:8px',
-            'z-index:25000',
-            'display:flex',
-            'gap:6px',
-            'font:600 12px Arial,sans-serif'
-        ].join(';');
-        addButton('Save', function () { ScratchJr.saveProject(null, ScratchJr.refreshProjectLabel); });
-        addButton('Projects', function () { ScratchJr.saveProject(null, ScratchJr.showProjectPicker); });
-        addButton('Export', ScratchJr.exportCurrentProject);
-        addButton('Import', ScratchJr.importProjectFromFile);
-        document.body.appendChild(bar);
-        ScratchJr.refreshProjectLabel();
-
-        function addButton (label, action) {
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.textContent = label;
-            btn.style.cssText = [
-                'border:2px solid rgba(255,255,255,.8)',
-                'border-radius:6px',
-                'background:#1976d2',
-                'color:white',
-                'padding:5px 8px',
-                'cursor:pointer',
-                'box-shadow:0 1px 4px rgba(0,0,0,.25)'
-            ].join(';');
-            btn.onclick = function (evt) {
-                evt.preventDefault();
-                evt.stopPropagation();
-                action();
-            };
-            bar.appendChild(btn);
-        }
-    }
-
     static refreshProjectLabel () {
         var info = document.getElementById('projectinfo');
         if (info && Project.metadata && Project.metadata.name) {
@@ -289,147 +249,8 @@ export default class ScratchJr {
         }
     }
 
-    static showProjectPicker () {
-        var existing = document.getElementById('browser-project-picker');
-        if (existing) existing.parentNode.removeChild(existing);
-        var overlay = document.createElement('div');
-        overlay.id = 'browser-project-picker';
-        overlay.style.cssText = [
-            'position:fixed',
-            'inset:0',
-            'z-index:40000',
-            'background:rgba(0,0,0,.45)',
-            'display:flex',
-            'align-items:center',
-            'justify-content:center',
-            'font:14px Arial,sans-serif'
-        ].join(';');
-        var panel = document.createElement('div');
-        panel.style.cssText = [
-            'width:min(720px,92vw)',
-            'max-height:82vh',
-            'overflow:auto',
-            'background:#fffdf6',
-            'border:3px solid #ffb300',
-            'border-radius:8px',
-            'box-shadow:0 8px 30px rgba(0,0,0,.35)',
-            'padding:14px'
-        ].join(';');
-        overlay.appendChild(panel);
-        document.body.appendChild(overlay);
-
-        var header = document.createElement('div');
-        header.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:12px';
-        var title = document.createElement('strong');
-        title.textContent = 'Projects';
-        title.style.cssText = 'font-size:18px;flex:1';
-        header.appendChild(title);
-        addPanelButton(header, 'New', function () {
-            IO.createProject({name: 'Untitled Tune', version: ScratchJr.version, isgift: '0'}, function (id) {
-                ScratchJr.switchProject(id);
-            });
-        });
-        addPanelButton(header, 'Close', close);
-        panel.appendChild(header);
-
-        var list = document.createElement('div');
-        panel.appendChild(list);
-        Projects.list().then(function (projects) {
-            if (!projects.length) {
-                var empty = document.createElement('p');
-                empty.textContent = 'No saved projects yet.';
-                list.appendChild(empty);
-                return;
-            }
-            projects.forEach(function (project) {
-                list.appendChild(ScratchJr.projectRow(project, close));
-            });
-        });
-
-        function close () {
-            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        }
-        function addPanelButton (parent, label, action) {
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.textContent = label;
-            btn.style.cssText = 'padding:7px 10px;border-radius:6px;border:1px solid #b0bec5;background:#eceff1;cursor:pointer';
-            btn.onclick = function (evt) {
-                evt.preventDefault();
-                evt.stopPropagation();
-                action();
-            };
-            parent.appendChild(btn);
-            return btn;
-        }
-    }
-
-    static projectRow (project, closePicker) {
-        var row = document.createElement('div');
-        row.style.cssText = [
-            'display:grid',
-            'grid-template-columns:72px 1fr auto auto auto',
-            'gap:8px',
-            'align-items:center',
-            'padding:8px',
-            'border-top:1px solid #e0e0e0'
-        ].join(';');
-        var thumb = document.createElement('div');
-        thumb.style.cssText = 'width:64px;height:48px;background:#f5f2f7;border:1px solid #ddd;background-size:cover;background-position:center';
-        var thumbnail = project.thumbnail;
-        if (typeof thumbnail === 'string') {
-            try { thumbnail = JSON.parse(thumbnail); } catch (err) { thumbnail = null; }
-        }
-        if (thumbnail && thumbnail.md5) {
-            OS.getmedia(thumbnail.md5, function (base64) {
-                if (base64) thumb.style.backgroundImage = 'url(data:image/png;base64,' + base64 + ')';
-            });
-        }
-        row.appendChild(thumb);
-        var name = document.createElement('div');
-        name.innerHTML = '<strong>' + escapeHTML(project.name || 'Untitled Tune') + '</strong><br><span style="color:#607d8b">' +
-            new Date(Number(project.mtime || Date.now())).toLocaleString() + '</span>';
-        row.appendChild(name);
-        addRowButton('Open', function () {
-            closePicker();
-            ScratchJr.switchProject(project.id);
-        });
-        addRowButton('Export', function () {
-            ScratchJr.exportProject(project.id);
-        });
-        addRowButton('Delete', function () {
-            if (!window.confirm('Delete "' + (project.name || 'Untitled Tune') + '"?')) return;
-            Projects.update(project.id, {deleted: 'YES'}).then(function () {
-                if (currentProject === project.id) {
-                    Project.metadata.deleted = 'YES';
-                    Projects.list().then(function (remaining) {
-                        if (remaining.length) ScratchJr.switchProject(remaining[0].id);
-                        else IO.createProject({name: 'Untitled Tune', version: ScratchJr.version, isgift: '0'},
-                            function (id) { ScratchJr.switchProject(id); });
-                    });
-                }
-                row.parentNode.removeChild(row);
-            });
-        });
-        return row;
-
-        function addRowButton (label, action) {
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.textContent = label;
-            btn.style.cssText = 'padding:6px 9px;border-radius:6px;border:1px solid #90a4ae;background:white;cursor:pointer';
-            btn.onclick = function (evt) {
-                evt.preventDefault();
-                evt.stopPropagation();
-                action();
-            };
-            row.appendChild(btn);
-        }
-        function escapeHTML (str) {
-            return String(str).replace(/[&<>"']/g, function (ch) {
-                return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'}[ch];
-            });
-        }
+    static showProjectsScreen () {
+        ProjectsScreen.show();
     }
 
     static switchProject (id) {
@@ -539,7 +360,12 @@ export default class ScratchJr {
     // Fullscreen — delegate to scratchjr's UI helpers if they exist.
     static fullScreen (e) {
         if (e) { e.preventDefault(); e.stopPropagation(); }
-        UI.enterFullScreen(e);
+        if (inFullscreen) {
+            UI.quitFullScreen();
+        } else {
+            UI.enterFullScreen(e);
+        }
+        inFullscreen = !inFullscreen;
     }
 
     // Numeric keypad used by block arg editing.

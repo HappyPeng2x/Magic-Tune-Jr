@@ -5,3 +5,5 @@ node_modules/
 /pnglibrary
 /.start-server.pid
 /.start-server.log
+/.start-watch.pid
+/.start-watch.log

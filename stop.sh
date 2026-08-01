@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
-# Stop the server started by start.sh.
+# Stop the server and watch build started by start.sh.
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-PID_FILE=".start-server.pid"
+any=0
+for pid_file in ".start-server.pid" ".start-watch.pid"; do
+  if [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
+    kill "$(cat "$pid_file")"
+    rm -f "$pid_file"
+    any=1
+  fi
+done
 
-if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-  kill "$(cat "$PID_FILE")"
-  rm -f "$PID_FILE"
+if [ "$any" -eq 1 ]; then
   echo "Stopped."
 else
   echo "Not running."

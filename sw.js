@@ -31,7 +31,6 @@ const APP_SHELL = [
 
 const RUNTIME_PREFIXES = [
     '/assets/',
-    '/css/',
     '/localizations/',
     '/pnglibrary/',
     '/samples/',
@@ -77,9 +76,13 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // Always discover the newest generated build ID. index.html uses it in
-    // the service-worker URL, causing a fresh install for each application build.
-    if (url.pathname.endsWith('/dist/build-id.js')) {
+    // Always discover the newest generated build ID, bundle, and stylesheets.
+    // index.html uses the build ID in the service-worker URL, causing a fresh
+    // install for each application build, but that install can race a page's
+    // own initial requests -- keeping these network-first too means a page
+    // never mixes a build ID/bundle/CSS from two different builds.
+    if (url.pathname.endsWith('/dist/build-id.js') || url.pathname.endsWith('/dist/app.bundle.js') ||
+        url.pathname.indexOf('/css/') !== -1) {
         event.respondWith(networkFirst(request));
         return;
     }

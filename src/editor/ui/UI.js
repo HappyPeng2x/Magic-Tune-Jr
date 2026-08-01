@@ -91,12 +91,55 @@ export default class UI {
     static leftPanel (div) {
         // sprite library
         var sl = newHTML('div', 'leftpanel', div);
-        var flip = newHTML('div', 'flipme', sl);
-        flip.setAttribute('id', 'flip');
-        flip.onclick = function () {
-            ScratchJr.saveProject(null, ScratchJr.showProjectPicker);
-        };
+        UI.layoutProjectActions(sl);
         UI.layoutLibrary(sl);
+    }
+
+    // Big icon-artwork buttons for Home/Save/Export/Import, in a single row.
+    // "Projects" isn't needed since Home already opens that screen. Plain
+    // text buttons are hard for young kids to use, so these are all colored
+    // circular buttons with simple icon artwork, matching the transport bar's
+    // icon-button style.
+    static layoutProjectActions (sl) {
+        var row = newHTML('div', 'project-actions-row', sl);
+
+        var home = UI.addProjectActionButton(row, 'side-home', '#FFB300',
+            '<path d="M4 11l8-7 8 7" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+            '<path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+            '<path d="M10 20v-6h4v6" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+            function () { ScratchJr.saveProject(null, ScratchJr.showProjectsScreen); });
+        // Kept as id "flip" -- Project.js anchors the Saving/error alert bubble to this element.
+        home.id = 'flip';
+
+        UI.addProjectActionButton(row, 'side-save', '#66BB6A',
+            '<path d="M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" fill="#fff"/>' +
+            '<rect x="7" y="3" width="8" height="5" rx="1" fill="#5D4037"/>' +
+            '<rect x="6" y="13" width="12" height="7" rx="1" fill="#90CAF9"/>',
+            function () { ScratchJr.saveProject(null, ScratchJr.refreshProjectLabel); });
+        UI.addProjectActionButton(row, 'side-export', '#AB47BC',
+            '<path d="M12 3v10" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>' +
+            '<path d="M7 8l5-5 5 5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+            '<path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"/>',
+            ScratchJr.exportCurrentProject);
+        UI.addProjectActionButton(row, 'side-import', '#42A5F5',
+            '<path d="M12 13V3" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>' +
+            '<path d="M7 8l5 5 5-5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+            '<path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"/>',
+            ScratchJr.importProjectFromFile);
+        ScratchJr.refreshProjectLabel();
+    }
+
+    static addProjectActionButton (parent, id, color, svgInner, action) {
+        var btn = newHTML('div', 'side-icon-btn', parent);
+        btn.id = id;
+        btn.style.background = color;
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' + svgInner + '</svg>';
+        btn.onclick = function (evt) {
+            evt.preventDefault();
+            evt.stopPropagation();
+            action();
+        };
+        return btn;
     }
 
     static middleSection () {
