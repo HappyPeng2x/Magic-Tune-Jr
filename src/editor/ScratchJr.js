@@ -34,7 +34,6 @@ let textForm = undefined;
 let changed = false;
 let changeVersion = 0;
 let editfirst = false;
-let inFullscreen = false;
 
 export default class ScratchJr {
     static get runtime ()         { return runtime; }
@@ -55,8 +54,6 @@ export default class ScratchJr {
     static set stopShaking (s)    { stopShaking = s; }
     static get onHold ()          { return _onHold; }
     static set onHold (v)         { _onHold = v; }
-    static get inFullscreen ()    { return inFullscreen; }
-    static set inFullscreen (v)   { inFullscreen = v; }
     static get userStart ()       { return false; }
     static get activeFocus ()     { return activeFocus; }
     static set activeFocus (v)    { activeFocus = v; }
@@ -356,17 +353,6 @@ export default class ScratchJr {
     static clearSelection () {}
     static blur ()           {}
     static unfocus (e)       {}
-
-    // Fullscreen — delegate to scratchjr's UI helpers if they exist.
-    static fullScreen (e) {
-        if (e) { e.preventDefault(); e.stopPropagation(); }
-        if (inFullscreen) {
-            UI.quitFullScreen();
-        } else {
-            UI.enterFullScreen(e);
-        }
-        inFullscreen = !inFullscreen;
-    }
 
     // Numeric keypad used by block arg editing.
     static setupKeypad () {

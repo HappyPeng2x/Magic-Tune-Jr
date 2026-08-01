@@ -21,7 +21,7 @@ import Paint from '../../painteditor/Paint';
 import Events from '../../utils/Events';
 import Localization from '../../utils/Localization';
 import ScratchAudio from '../../utils/ScratchAudio';
-import {frame, gn, CSSTransition, localx, newHTML, scaleMultiplier, fullscreenScaleMultiplier,
+import {frame, gn, CSSTransition, localx, newHTML, scaleMultiplier,
     getIdFor, isTablet, newDiv, newTextInput, isAndroid, getDocumentWidth, getDocumentHeight,
     setProps, globalx} from '../../utils/lib';
 
@@ -42,7 +42,6 @@ export default class UI {
         UI.topSection();
         UI.middleSection();
         UI.BottomSection();
-        UI.fullscreenControls();
         UI.createFormForText(frame);
         ScratchJr.setupKeypad();
         ScratchJr.setupEditableField();
@@ -779,7 +778,6 @@ export default class UI {
         UI.createTopBarClicky(div, 'grid', 'gridToggle off', UI.switchGrid);
         UI.createTopBarClicky(div, 'go', 'go on', UI.toggleRun);
         UI.createTopBarClicky(div, 'resetall', 'resetall', UI.resetAllSprites);
-        UI.createTopBarClicky(div, 'full', 'fullscreen', ScratchJr.fullScreen);
         UI.setShowGrid(false);
     }
 
@@ -821,92 +819,6 @@ export default class UI {
         var toggle = newHTML('div', mstyle, p);
         toggle.onclick = fcn;
         toggle.setAttribute('id', str);
-    }
-
-    static fullscreenControls () {
-        UI.nextpage = newHTML('div', 'nextpage off', frame);
-        UI.prevpage = newHTML('div', 'nextpage off', frame);
-        UI.nextpage.onclick = UI.nextPage;
-        UI.prevpage.onclick = UI.prevPage;
-    }
-
-    static updatePageControls () {
-        var n = ScratchJr.stage.pages.indexOf(ScratchJr.stage.currentPage);
-        if (n == 0) {
-            UI.prevpage.setAttribute('class', 'prevpage off');
-        } else {
-            UI.prevpage.setAttribute('class', 'prevpage on');
-        }
-        if (n == (ScratchJr.stage.pages.length - 1)) {
-            UI.nextpage.setAttribute('class', 'nextpage off');
-        } else {
-            UI.nextpage.setAttribute('class', 'nextpage on');
-        }
-    }
-
-    static nextPage (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var n = ScratchJr.stage.pages.indexOf(ScratchJr.stage.currentPage);
-        n++;
-        if (n >= ScratchJr.stage.pages.length) {
-            return;
-        }
-        ScratchJr.stage.setPage(ScratchJr.stage.pages[n], false);
-    }
-
-    static prevPage (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var n = ScratchJr.stage.pages.indexOf(ScratchJr.stage.currentPage);
-        if (n < 1) {
-            return;
-        }
-        ScratchJr.stage.setPage(ScratchJr.stage.pages[n - 1], false);
-    }
-
-    static enterFullScreen () {
-        var w = Math.min(getDocumentWidth(), frame.offsetWidth);
-        var h = Math.max(getDocumentHeight(), frame.offsetHeight);
-        frame.appendChild(gn('stage'));
-        var list = ['go', 'full'];
-        for (var i = 0; i < list.length; i++) {
-            gn(list[i]).className = gn(list[i]).className + ' presentationmode';
-            frame.appendChild(gn(list[i]));
-        }
-        var scale = Math.min(
-            (w - (fullscreenScaleMultiplier * scaleMultiplier)) / gn('stage').owner.width,
-            h / gn('stage').owner.height
-        );
-        var dx = Math.floor((w - (gn('stage').owner.width * scale)) / 2);
-        var dy = Math.floor((h - (gn('stage').owner.height * scale)) / 2);
-
-        ScratchJr.stage.setStageScaleAndPosition(scale, dx / scale, dy / scale);
-
-        gn('stage').owner.currentZoom = Math.floor(scale * 100) / 100;
-        gn('stage').style.webkitTextSizeAdjust = Math.floor(gn('stage').owner.currentZoom * 100) + '%';
-        document.body.parentNode.style.background = 'black';
-        gn('stage').setAttribute('class', 'stage fullscreen');
-        UI.nextpage.setAttribute('class', 'nextpage on');
-    }
-
-    static quitFullScreen () {
-        var div = gn('stageframe');
-        div.appendChild(gn('stage'));
-        ScratchJr.stage.setStageScaleAndPosition(scaleMultiplier, 46, 74);
-        gn('go').className = 'go off nopresent';
-        div.appendChild(gn('go'));
-        gn('full').className = 'fullscreen';
-        div.appendChild(gn('full'));
-        gn('stage').owner.currentZoom = 1;
-        gn('stage').style.webkitTextSizeAdjust = '100%';
-        document.body.parentNode.style.background = 'none';
-        gn('stage').setAttribute('class', 'stage normal');
-        UI.nextpage.setAttribute('class', 'nextpage off');
-        UI.prevpage.setAttribute('class', 'nextpage off');
-        ScratchJr.stage.setViewPage(ScratchJr.stage.currentPage);
-        Thumbs.updateSprites();
-        Thumbs.updatePages();
     }
 
     //////////////////////////////////////

@@ -94,7 +94,7 @@ export default class Page {
             this.currentSpriteName = spr.id;
             spr.div.style.visibility = 'visible';
             Palette.show();
-            if (scriptsEl) scriptsEl.style.display = ScratchJr.inFullscreen ? 'none' : 'block';
+            if (scriptsEl) scriptsEl.style.display = 'block';
             spr.activate();
         } else {
             this.currentSpriteName = undefined;
