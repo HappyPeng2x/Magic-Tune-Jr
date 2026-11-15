@@ -1,7 +1,7 @@
 import ScratchJr from '../ScratchJr';
 import Prims from './Prims';
 import Thread from './Thread';
-import {TICK_MS} from './TimelineDuration';
+import {TICK_MS, MOVE_PATH_BLOCKTYPE} from './TimelineDuration';
 
 // Block types that are not valid standalone timeline clips.
 // 'repeat'/'forever' require inner content; trigger blocks belong to Scratch Jr's
@@ -62,6 +62,31 @@ class VirtualBlock {
 }
 
 
+// Linearly interpolate the recorded (dx, dy) offset at `t` ms into a
+// recorded gesture's sample list. Clamps to the first/last sample outside
+// the recorded range.
+function samplePath (samples, t) {
+    if (samples.length === 0) return {dx: 0, dy: 0};
+    var first = samples[0];
+    if (t <= first.t) return {dx: first.dx, dy: first.dy};
+    var last = samples[samples.length - 1];
+    if (t >= last.t) return {dx: last.dx, dy: last.dy};
+
+    for (var i = 1; i < samples.length; i++) {
+        if (samples[i].t >= t) {
+            var a = samples[i - 1];
+            var b = samples[i];
+            var span = b.t - a.t;
+            var frac = span > 0 ? (t - a.t) / span : 0;
+            return {
+                dx: a.dx + ((b.dx - a.dx) * frac),
+                dy: a.dy + ((b.dy - a.dy) * frac)
+            };
+        }
+    }
+    return {dx: last.dx, dy: last.dy};
+}
+
 // ─── TimelineRuntime ──────────────────────────────────────────────────────────
 
 export default class TimelineRuntime {
@@ -76,6 +101,22 @@ export default class TimelineRuntime {
 
         // clipId → Thread for every clip whose time range includes currentTime.
         this._activeThreads = new Map();
+
+        // clipId → {clip, spr, baseX, baseY} for every active movepath clip.
+        // Kept separate from _activeThreads because path clips replay a
+        // recorded (dx, dy) offset each tick instead of running through the
+        // Prims/Thread block-execution machinery.
+        this._activePaths = new Map();
+
+        // Sprite ids currently being hand-dragged by the user (either to set
+        // a start position, or to record a new movepath clip). Sprites in
+        // this set are skipped by _syncActiveThreads so a scheduled clip
+        // can't fight the user's drag for control of xcoor/ycoor.
+        this._manualControl = new Set();
+
+        // The in-progress drag-recording gesture, if any: {spr, startTime,
+        // baseX, baseY, samples}. Only one sprite can be dragged at a time.
+        this._recording = null;
     }
 
     // ── Compatibility with Prims that read ScratchJr.runtime.threadsRunning ──
@@ -83,6 +124,13 @@ export default class TimelineRuntime {
     get threadsRunning () {
         return Array.from(this._activeThreads.values());
     }
+
+    // Stock Stage.mouseUp re-merges threads paused for a drag via
+    // `runtime.threadsRunning = runtime.threadsRunning.concat(spr.threads)`.
+    // removeRunScript() always returns [] in timeline mode, so this is a
+    // no-op; the setter only exists so that assignment doesn't throw
+    // (threadsRunning would otherwise be a getter-only accessor).
+    set threadsRunning (list) {}
 
     // ── Transport ─────────────────────────────────────────────────────────────
 
@@ -150,6 +198,7 @@ export default class TimelineRuntime {
         this.currentTime += TICK_MS;
         this._syncActiveThreads();
         this._stepAllThreads();
+        this._stepActivePaths();
     }
 
     // ── Clip → Thread lifecycle ───────────────────────────────────────────────
@@ -164,6 +213,9 @@ export default class TimelineRuntime {
         for (var si = 0; si < sprites.length; si++) {
             var spr = sprites[si];
             if (!spr.timeline) continue;
+            // The user is currently hand-dragging this sprite; leave its
+            // clips paused until the drag ends.
+            if (this._manualControl.has(spr.id)) continue;
 
             for (var ci = 0; ci < spr.timeline.length; ci++) {
                 var clip = spr.timeline[ci];
@@ -172,12 +224,21 @@ export default class TimelineRuntime {
                 var clipEnd = clip.startTime + clip.duration;
                 var shouldBeActive = (t > clip.startTime) &&
                                      (clip.duration === Infinity || t <= clipEnd);
-                var isActive = this._activeThreads.has(clip.id);
+                var isPath = clip.blocktype === MOVE_PATH_BLOCKTYPE;
+                var isActive = isPath ? this._activePaths.has(clip.id) : this._activeThreads.has(clip.id);
 
                 if (shouldBeActive && !isActive) {
-                    this._startClip(spr, clip);
+                    if (isPath) {
+                        this._startPath(spr, clip);
+                    } else {
+                        this._startClip(spr, clip);
+                    }
                 } else if (!shouldBeActive && isActive) {
-                    this._stopClip(clip.id, false);
+                    if (isPath) {
+                        this._stopPath(clip.id);
+                    } else {
+                        this._stopClip(clip.id, false);
+                    }
                 }
             }
         }
@@ -201,6 +262,98 @@ export default class TimelineRuntime {
         if (thread) {
             thread.stop(stopMine);
             this._activeThreads.delete(clipId);
+        }
+    }
+
+    // Capture the sprite's position at the moment this movepath clip becomes
+    // active; every tick then re-applies the clip's recorded offsets on top
+    // of that base, so the clip is relative to wherever the sprite is.
+    _startPath (spr, clip) {
+        this._activePaths.set(clip.id, {clip: clip, spr: spr, baseX: spr.xcoor, baseY: spr.ycoor});
+    }
+
+    _stopPath (clipId) {
+        var entry = this._activePaths.get(clipId);
+        if (!entry) return;
+        // Snap to the recorded end position so playback lands exactly where
+        // the gesture ended even if a tick boundary was skipped (e.g. seekTo).
+        var last = entry.clip.arg[entry.clip.arg.length - 1];
+        if (last) {
+            entry.spr.xcoor = entry.baseX + last.dx;
+            entry.spr.ycoor = entry.baseY + last.dy;
+            entry.spr.render();
+        }
+        this._activePaths.delete(clipId);
+    }
+
+    _stepActivePaths () {
+        for (var entry of this._activePaths.values()) {
+            var elapsed = this.currentTime - entry.clip.startTime;
+            var pt = samplePath(entry.clip.arg, elapsed);
+            entry.spr.xcoor = entry.baseX + pt.dx;
+            entry.spr.ycoor = entry.baseY + pt.dy;
+            entry.spr.render();
+        }
+    }
+
+    // ── Drag-to-record: turn a stage drag during playback into a clip ────────
+
+    // Called when a stage drag begins on `spr` while the runtime is playing.
+    // Any clip currently driving the sprite is stopped immediately (the
+    // user's hand takes over), and the sprite is marked manually-controlled
+    // so scheduling leaves it alone until endRecording().
+    beginRecording (spr) {
+        this._stopSpriteMotion(spr);
+        this._manualControl.add(spr.id);
+        this._recording = {
+            spr: spr,
+            startTime: this.currentTime,
+            baseX: spr.xcoor,
+            baseY: spr.ycoor,
+            samples: [{t: 0, dx: 0, dy: 0}]
+        };
+    }
+
+    // Called after the stage drag has updated spr.xcoor/ycoor for the
+    // current pointer position, to append a sample to the in-progress
+    // recording (a no-op if no recording is active).
+    recordSample () {
+        var rec = this._recording;
+        if (!rec) return;
+        rec.samples.push({
+            t:  this.currentTime - rec.startTime,
+            dx: rec.spr.xcoor - rec.baseX,
+            dy: rec.spr.ycoor - rec.baseY
+        });
+    }
+
+    // Called on drag release. Turns the recorded gesture into a new
+    // movepath clip on the sprite's timeline (unless the drag was too brief
+    // to have moved during a tick). Returns the new clip, or null.
+    endRecording () {
+        var rec = this._recording;
+        this._recording = null;
+        if (!rec) return null;
+        this._manualControl.delete(rec.spr.id);
+
+        var last = rec.samples[rec.samples.length - 1];
+        if (!last || last.t < TICK_MS) return null;
+        return rec.spr.addPathClip(rec.samples, rec.startTime);
+    }
+
+    // Stop whatever clip (block-thread or movepath) is currently animating
+    // `spr`, so a manual drag can take exclusive control of its position.
+    _stopSpriteMotion (spr) {
+        for (var entry of Array.from(this._activeThreads.entries())) {
+            if (entry[1].spr === spr) {
+                entry[1].stop(true);
+                this._activeThreads.delete(entry[0]);
+            }
+        }
+        for (var pentry of Array.from(this._activePaths.entries())) {
+            if (pentry[1].spr === spr) {
+                this._activePaths.delete(pentry[0]);
+            }
         }
     }
 
@@ -299,6 +452,9 @@ export default class TimelineRuntime {
             thread.stop(true);
         }
         this._activeThreads.clear();
+        this._activePaths.clear();
+        this._manualControl.clear();
+        this._recording = null;
     }
 
     // Returns all sprites on the current page that have a timeline array.

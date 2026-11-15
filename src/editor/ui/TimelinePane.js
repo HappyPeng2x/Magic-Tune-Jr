@@ -1,6 +1,7 @@
 import ScratchJr from '../ScratchJr';
 import TransportControls from './TransportControls';
 import Library from './Library';
+import {MOVE_PATH_BLOCKTYPE} from '../engine/TimelineDuration';
 import {newHTML, gn, setProps, scaleMultiplier} from '../../utils/lib';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -12,14 +13,19 @@ export const PX_PER_MS = 0.25;
 
 // Height of the ruler row and each sprite track row, in pixels.
 const RULER_H  = 28;
-export const ROW_H    = 48;
+export const ROW_H    = 84;
 
 // Height of a single clip sub-track within a row.
 // Tall enough to fit a block icon (32 px content = TRACK_H - 4).
 export const TRACK_H  = 36;
 
-// Width of the fixed sprite-label column on the left.
-const LABEL_W  = 80;
+// Width of the fixed sprite-label column on the left.  Sized to fit a big,
+// kid-friendly character thumbnail with no name label alongside it, roughly
+// matching the block palette's action-bar scale.
+const LABEL_W  = 108;
+
+// Size of the character thumbnail inside a label cell.
+const LABEL_THUMB_SIZE = 64;
 
 // Ruler tick interval in milliseconds (one tick label per second).
 const RULER_TICK_MS = 1000;
@@ -38,6 +44,11 @@ const PLAYHEAD_INTERVAL_MS = 50;
 
 // Pixels from the right edge of a clip that trigger resize mode.
 const RESIZE_HANDLE_W = 8;
+
+// Long-press timing/threshold for revealing the change/delete buttons on a
+// sprite's label cell (mirrors ProjectsScreen's hold-to-delete pattern).
+const LONG_PRESS_MS = 500;
+const DRAG_THRESHOLD = 12;
 
 // ── Block category colours, matching BlockSpecs colour groups ─────────────────
 // These inline colours let the pane render without a CSS file.  A real CSS
@@ -62,6 +73,8 @@ export const CLIP_COLOR = {
     wait:     '#FFAB19', setspeed: '#FFAB19', stopmine: '#FFAB19', repeat: '#FFAB19',
     // Scene / end (Scratch Jr red)
     stopall: '#FF6680', gotopage: '#FF6680',
+    // Recorded stage drag (same Motion blue as forward/back/etc.)
+    [MOVE_PATH_BLOCKTYPE]: '#4C97FF',
 };
 
 const DEFAULT_CLIP_COLOR = '#888888';
@@ -162,6 +175,9 @@ let _playheadId = null;
 // Active clip drag (move or resize).  Null when idle.
 let _clipDrag = null;
 
+// The label cell currently showing its change/delete action buttons, if any.
+let _revealedLabel = null;
+
 // ── Exported utility ──────────────────────────────────────────────────────────
 
 // Compute the rendered height of a sprite's track row.
@@ -249,6 +265,14 @@ export default class TimelinePane {
             labelList.scrollTop = trackList.scrollTop;
         });
 
+        // Clicking/tapping anywhere outside the revealed action buttons
+        // dismisses them.
+        document.addEventListener('pointerdown', function (e) {
+            if (_revealedLabel && !_revealedLabel.contains(e.target)) {
+                TimelinePane._hideLabelActions();
+            }
+        });
+
         TimelinePane.refresh();
         TimelinePane._startPlayheadUpdater();
         return pane;
@@ -264,6 +288,10 @@ export default class TimelinePane {
         var ruler     = gn('timeline-ruler');
         var scrollArea = gn('timeline-scrollarea');
         if (!labelList || !trackList || !ruler) return;
+
+        // The label cells are about to be torn down and rebuilt, so any
+        // revealed action buttons reference DOM nodes that are going away.
+        _revealedLabel = null;
 
         var sprites  = TimelinePane._getSprites();
         var totalMs  = TimelinePane._totalDuration(sprites);
@@ -345,6 +373,7 @@ export default class TimelinePane {
         // ── Label cell ────────────────────────────────────────────────────
         var label = newHTML('div', 'timeline-label', labelList);
         label.setAttribute('data-sprite-id', spr.id);
+        label.style.position     = 'relative';
         label.style.height       = rowH + 'px';
         label.style.width        = LABEL_W + 'px';
         label.style.boxSizing    = 'border-box';
@@ -352,20 +381,15 @@ export default class TimelinePane {
         label.style.overflow     = 'hidden';
         label.style.display      = 'flex';
         label.style.alignItems   = 'center';
-        label.style.gap          = '4px';
-        label.style.padding      = '0 4px';
-        label.style.fontSize     = '11px';
+        label.style.justifyContent = 'center';
         label.style.cursor       = 'pointer';
+        // Identifies the sprite on hover/long-press without showing text
+        // on screen — this UI is for pre-readers.
+        label.title = spr.name || spr.id;
 
-        // Clicking the label selects this sprite (so palette shows its blocks).
-        label.onclick = (function (s) {
-            return function () {
-                if (ScratchJr.stage && ScratchJr.stage.currentPage) {
-                    ScratchJr.stage.currentPage.setCurrentSprite(s);
-                    TimelinePane.refresh();
-                }
-            };
-        })(spr);
+        // Tapping the label selects this sprite (so palette shows its blocks).
+        // Holding it down reveals change/delete buttons instead of selecting.
+        TimelinePane._attachLabelPress(label, spr);
 
         // Highlight the currently selected sprite.
         var isActive = ScratchJr.stage && ScratchJr.stage.currentPage &&
@@ -379,18 +403,13 @@ export default class TimelinePane {
             var thumb = document.createElement('img');
             thumb.src       = spr.img.src;
             thumb.className = 'label-thumb';
-            thumb.style.width  = '24px';
-            thumb.style.height = '24px';
+            thumb.style.width  = LABEL_THUMB_SIZE + 'px';
+            thumb.style.height = LABEL_THUMB_SIZE + 'px';
             thumb.style.objectFit = 'contain';
             thumb.style.flexShrink = '0';
+            thumb.style.pointerEvents = 'none';
             label.appendChild(thumb);
         }
-
-        var nameEl = newHTML('span', 'label-name', label);
-        nameEl.textContent = spr.name || spr.id;
-        nameEl.style.overflow     = 'hidden';
-        nameEl.style.textOverflow = 'ellipsis';
-        nameEl.style.whiteSpace   = 'nowrap';
 
         // ── Track row ─────────────────────────────────────────────────────
         var track = newHTML('div', 'timeline-track', trackList);
@@ -414,6 +433,126 @@ export default class TimelinePane {
                 TimelinePane._buildClip(spr.timeline[i], track, spr);
             }
         }
+    }
+
+    // ── Label press handling: tap to select, hold to reveal actions ───────────
+
+    // Attach pointer handlers that distinguish a quick tap (select the
+    // sprite) from a hold (reveal change/delete buttons) from a drag
+    // (ignore).  Mirrors ProjectsScreen's attachTapHandler.
+    static _attachLabelPress (label, spr) {
+        var pressTimer = null;
+        var longPressed = false;
+        var dragging = false;
+        var startPt = null;
+
+        label.addEventListener('pointerdown', function (e) {
+            if (e.button !== undefined && e.button !== 0) return;
+            longPressed = false;
+            dragging = false;
+            startPt = {x: e.clientX, y: e.clientY};
+            if (_revealedLabel && _revealedLabel !== label) TimelinePane._hideLabelActions();
+            pressTimer = setTimeout(function () {
+                longPressed = true;
+                TimelinePane._showLabelActions(label, spr);
+            }, LONG_PRESS_MS);
+        });
+        label.addEventListener('pointermove', function (e) {
+            if (!startPt) return;
+            var dx = e.clientX - startPt.x;
+            var dy = e.clientY - startPt.y;
+            if (Math.sqrt((dx * dx) + (dy * dy)) > DRAG_THRESHOLD) {
+                dragging = true;
+                clearTimeout(pressTimer);
+            }
+        });
+        label.addEventListener('pointerup', function () {
+            clearTimeout(pressTimer);
+            startPt = null;
+            if (dragging || longPressed) return;
+            if (ScratchJr.stage && ScratchJr.stage.currentPage) {
+                ScratchJr.stage.currentPage.setCurrentSprite(spr);
+                TimelinePane.refresh();
+            }
+        });
+        label.addEventListener('pointercancel', function () {
+            clearTimeout(pressTimer);
+            startPt = null;
+        });
+    }
+
+    // Reveal a change-character and delete-character button over the label
+    // cell.  Only one label shows its actions at a time.
+    static _showLabelActions (label, spr) {
+        TimelinePane._hideLabelActions();
+
+        var overlay = newHTML('div', 'timeline-label-actions', label);
+        overlay.style.position       = 'absolute';
+        overlay.style.top            = '0';
+        overlay.style.left           = '0';
+        overlay.style.right          = '0';
+        overlay.style.bottom         = '0';
+        overlay.style.display        = 'flex';
+        overlay.style.alignItems     = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.gap            = '8px';
+        overlay.style.background     = 'rgba(0,0,0,0.6)';
+        overlay.style.zIndex         = '5';
+
+        var changeBtn = TimelinePane._labelActionButton('✎', '#4C97FF');
+        changeBtn.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+        changeBtn.addEventListener('pointerup', function (e) {
+            e.stopPropagation();
+            e.preventDefault();
+            TimelinePane._hideLabelActions();
+            Library.open('costumes', spr.id, function () { TimelinePane.refresh(); });
+        });
+
+        var deleteBtn = TimelinePane._labelActionButton('✕', '#FF6680');
+        deleteBtn.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+        deleteBtn.addEventListener('pointerup', function (e) {
+            e.stopPropagation();
+            e.preventDefault();
+            TimelinePane._hideLabelActions();
+            if (!window.confirm('Delete "' + (spr.name || spr.id) + '"?')) return;
+            if (ScratchJr.stage) {
+                ScratchJr.stage.removeSprite(spr);
+                TimelinePane.refresh();
+            }
+        });
+
+        overlay.appendChild(changeBtn);
+        overlay.appendChild(deleteBtn);
+
+        label._actionsOverlay = overlay;
+        _revealedLabel = label;
+    }
+
+    static _labelActionButton (glyph, color) {
+        var btn = document.createElement('div');
+        btn.textContent = glyph;
+        btn.style.width          = '38px';
+        btn.style.height         = '38px';
+        btn.style.borderRadius   = '50%';
+        btn.style.background     = color;
+        btn.style.color          = '#fff';
+        btn.style.fontSize       = '19px';
+        btn.style.lineHeight     = '38px';
+        btn.style.textAlign      = 'center';
+        btn.style.border         = '2px solid rgba(255,255,255,0.7)';
+        btn.style.boxShadow      = '0 2px 4px rgba(0,0,0,0.35)';
+        btn.style.cursor         = 'pointer';
+        btn.style.flexShrink     = '0';
+        return btn;
+    }
+
+    static _hideLabelActions () {
+        if (_revealedLabel && _revealedLabel._actionsOverlay &&
+            _revealedLabel._actionsOverlay.parentNode) {
+            _revealedLabel._actionsOverlay.parentNode.removeChild(_revealedLabel._actionsOverlay);
+        }
+        if (_revealedLabel) _revealedLabel._actionsOverlay = null;
+        _revealedLabel = null;
     }
 
     static _buildClip (clip, track, spr) {
@@ -468,7 +607,7 @@ export default class TimelinePane {
         // clipped by a narrow clip.  position:absolute is relative to el
         // (which is itself position:absolute, making it a containing block).
         var arg = clip.arg;
-        if (arg !== null && arg !== undefined && String(arg) !== '') {
+        if (arg !== null && arg !== undefined && typeof arg !== 'object' && String(arg) !== '') {
             var argEl = newHTML('span', 'clip-arg', el);
             argEl.textContent           = String(arg);
             argEl.style.position        = 'absolute';

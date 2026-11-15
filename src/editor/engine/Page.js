@@ -521,7 +521,7 @@ export default class Page {
         new Sprite(data, this.spriteAdded);
     }
 
-    modifySprite (md5, cid, sid) {
+    modifySprite (md5, cid, sid, fcn) {
         var sprite = gn(unescape(sid)).owner;
         if (!sprite) {
             sprite = ScratchJr.getSprite();
@@ -531,7 +531,10 @@ export default class Page {
         var me = this;
         sprite.getAsset(gotImage);
         function gotImage (dataurl) {
-            sprite.setCostume(dataurl, me.spriteAdded);
+            sprite.setCostume(dataurl, function (spr) {
+                me.spriteAdded(spr);
+                if (fcn) fcn(spr);
+            });
         }
     }
 

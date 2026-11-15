@@ -33,6 +33,19 @@ let infoBoxOpen = false;
 const EMAILSHARE = 0;
 const AIRDROPSHARE = 1;
 
+// Corner brackets pointing outward/inward -- swapped on the fullscreen
+// button depending on whether we're currently fullscreen.
+const FULLSCREEN_ENTER_ICON =
+    '<path d="M4 9V4h5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+    '<path d="M20 9V4h-5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+    '<path d="M4 15v5h5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+    '<path d="M20 15v5h-5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>';
+const FULLSCREEN_EXIT_ICON =
+    '<path d="M9 4v5H4" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+    '<path d="M15 4v5h5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+    '<path d="M9 20v-5H4" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+    '<path d="M15 20v-5h5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>';
+
 export default class UI {
     static get infoBoxOpen () {
         return infoBoxOpen;
@@ -125,7 +138,36 @@ export default class UI {
             '<path d="M7 8l5 5 5-5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
             '<path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"/>',
             ScratchJr.importProjectFromFile);
+
+        // Fullscreen toggle, so the browser's own address/tab bar doesn't
+        // eat into the small screen this app is designed for.
+        UI.addProjectActionButton(row, 'side-fullscreen', '#26A69A', FULLSCREEN_ENTER_ICON,
+            UI.toggleFullscreen);
+        document.addEventListener('fullscreenchange', UI.updateFullscreenIcon);
+        document.addEventListener('webkitfullscreenchange', UI.updateFullscreenIcon);
+
         ScratchJr.refreshProjectLabel();
+    }
+
+    static toggleFullscreen () {
+        var doc = document;
+        var isFullscreen = doc.fullscreenElement || doc.webkitFullscreenElement;
+        if (!isFullscreen) {
+            var el = document.documentElement;
+            var request = el.requestFullscreen || el.webkitRequestFullscreen;
+            if (request) request.call(el);
+        } else {
+            var exit = doc.exitFullscreen || doc.webkitExitFullscreen;
+            if (exit) exit.call(doc);
+        }
+    }
+
+    static updateFullscreenIcon () {
+        var btn = gn('side-fullscreen');
+        if (!btn) return;
+        var isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+            (isFullscreen ? FULLSCREEN_EXIT_ICON : FULLSCREEN_ENTER_ICON) + '</svg>';
     }
 
     static addProjectActionButton (parent, id, color, svgInner, action) {

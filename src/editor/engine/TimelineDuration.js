@@ -13,6 +13,12 @@
 export const TICK_MS = 32;
 export const DEFAULT_SPEED = 2; // medium
 
+// Blocktype for a clip recorded by dragging a sprite around the stage while
+// playing. Its `arg` is an array of {t, dx, dy} samples (a path) rather than
+// a single scalar, so it is scheduled/played back separately from the other
+// blocktypes below (see TimelineRuntime._startPath/_stepPath).
+export const MOVE_PATH_BLOCKTYPE = 'movepath';
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 // Movement: forward / back / up / down

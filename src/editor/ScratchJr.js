@@ -17,6 +17,8 @@ import Events from '../utils/Events';
 import Grid from './ui/Grid';
 import {libInit, gn, newHTML, frame, getIdFor, scaleMultiplier} from '../utils/lib';
 
+let workingCanvas = document.createElement('canvas');
+let workingCanvas2 = document.createElement('canvas');
 let runtime = undefined;
 let stage = undefined;
 let currentProject = undefined;
@@ -36,6 +38,8 @@ let changeVersion = 0;
 let editfirst = false;
 
 export default class ScratchJr {
+    static get workingCanvas ()   { return workingCanvas; }
+    static get workingCanvas2 ()  { return workingCanvas2; }
     static get runtime ()         { return runtime; }
     static set runtime (r)        { runtime = r; }
     static get stage ()           { return stage; }
@@ -353,6 +357,13 @@ export default class ScratchJr {
     static clearSelection () {}
     static blur ()           {}
     static unfocus (e)       {}
+
+    // Stock Scratch Jr triggers onclick/ontouch scripts from Stage's click
+    // and drag-release handlers. The timeline model has no event-script
+    // system (see TimelineRuntime's restartThread/addRunScript stubs), so
+    // these exist only so those call sites don't throw.
+    static startScriptsFor (spr, list)  {}
+    static startCurrentPageStrips (list) {}
 
     // Numeric keypad used by block arg editing.
     static setupKeypad () {

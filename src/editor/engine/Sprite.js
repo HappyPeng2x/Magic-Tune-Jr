@@ -22,7 +22,7 @@ import Rectangle from '../../geom/Rectangle';
 import Events from '../../utils/Events';
 import Localization from '../../utils/Localization';
 import ScratchAudio from '../../utils/ScratchAudio';
-import {durationMs, DEFAULT_SPEED} from './TimelineDuration';
+import {durationMs, DEFAULT_SPEED, TICK_MS, MOVE_PATH_BLOCKTYPE} from './TimelineDuration';
 import {newHTML, newDiv, newP, gn,
     setCanvasSizeScaledToWindowDocumentHeight,
     DEGTOR, getIdFor, setProps, isTablet, isiOS,
@@ -112,6 +112,7 @@ export default class Sprite {
     }
 
     setCostume (dataurl, fcn) {
+        var oldImg = this.img;
         var img = document.createElement('img');
         img.ondragstart = function () {
             return false;
@@ -125,6 +126,12 @@ export default class Sprite {
             left: '0px',
             top: '0px'
         });
+        // Changing an existing sprite's costume (Page.modifySprite) calls
+        // setCostume a second time on the same sprite -- without this, the
+        // old costume image stays in the DOM and both render stacked.
+        if (oldImg && oldImg.parentNode === this.div) {
+            this.div.removeChild(oldImg);
+        }
         this.div.appendChild(img);
         var sprite = this;
         if (!img.complete) {
@@ -1172,6 +1179,25 @@ export default class Sprite {
             arg: arg,
             startTime: startTime,
             duration: calculated !== null ? calculated : 2000,
+            track: track
+        };
+        this.timeline.push(clip);
+        return clip;
+    }
+
+    // Add a clip built from a recorded stage-drag gesture: `samples` is an
+    // array of {t, dx, dy} points relative to the sprite's position and the
+    // gesture's start time. Playback re-applies these offsets to whatever
+    // position the sprite is at when the clip becomes active, so moving the
+    // clip in time (or the sprite's start position) carries the gesture with it.
+    addPathClip (samples, startTime, track = 0) {
+        var last = samples[samples.length - 1];
+        var clip = {
+            id: this.id + '_clip_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+            blocktype: MOVE_PATH_BLOCKTYPE,
+            arg: samples,
+            startTime: startTime,
+            duration: last ? Math.max(last.t, TICK_MS) : TICK_MS,
             track: track
         };
         this.timeline.push(clip);
