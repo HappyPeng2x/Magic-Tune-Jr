@@ -73,6 +73,7 @@ export default class TimelinePalette {
         if (info && dragcanvas && dragcanvas.owner) {
             var block = dragcanvas.owner;
             info.spr.addClip(block.blocktype, block.getArgValue(), info.startTime);
+            ScratchJr.changed = true;  // schedules an autosave
             TimelinePane.refresh();
         }
 

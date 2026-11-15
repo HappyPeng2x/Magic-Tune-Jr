@@ -269,6 +269,9 @@ export default class TimelinePane {
         playhead.style.pointerEvents = 'none';
         playhead.style.left = '0px';
 
+        // Clicking / tapping empty track space moves the playhead there.
+        trackList.addEventListener('pointerdown', TimelinePane._trackSeekStart);
+
         // Keep label-list vertical scroll in sync with the track-list.
         trackList.addEventListener('scroll', function () {
             labelList.scrollTop = trackList.scrollTop;
@@ -777,6 +780,56 @@ export default class TimelinePane {
         TimelinePane.updatePlayhead();
     }
 
+    // ── Track seek: click / tap empty track space to move the playhead ──────
+    //
+    // Mouse: the playhead jumps on press and follows the pointer until
+    // release (like the ruler). Touch / pen: seek on a tap only, so swiping
+    // still scrolls the track list (the browser cancels the pointer when a
+    // scroll starts).
+    static _trackSeekStart (e) {
+        if (e.button !== undefined && e.button !== 0) return;
+        // Clips handle their own move/resize drags.
+        if (e.target.closest && e.target.closest('.timeline-clip')) return;
+
+        var rt = ScratchJr.runtime;
+        var mouse = e.pointerType === 'mouse';
+        var startX = e.clientX;
+        var startY = e.clientY;
+        var cancelled = false;
+
+        var setTime = function (ev) {
+            if (rt) rt.currentTime = Math.max(0, TimelinePane._rulerXtoMs(ev));
+            TimelinePane.updatePlayhead();
+        };
+        if (mouse) {
+            e.preventDefault();
+            if (rt && rt.playing) rt.pause();
+            setTime(e);
+        }
+
+        var move = function (ev) {
+            if (mouse) {
+                setTime(ev);
+            } else if (Math.abs(ev.clientX - startX) > DRAG_THRESHOLD ||
+                       Math.abs(ev.clientY - startY) > DRAG_THRESHOLD) {
+                cancelled = true;
+            }
+        };
+        var done = function (ev) {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', done);
+            window.removeEventListener('pointercancel', done);
+            if (ev.type === 'pointercancel' || cancelled || !rt) return;
+            // Pause first so seekTo doesn't resume playback.
+            if (rt.playing) rt.pause();
+            rt.seekTo(Math.max(0, TimelinePane._rulerXtoMs(ev)));
+            TimelinePane.updatePlayhead();
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', done);
+        window.addEventListener('pointercancel', done);
+    }
+
     // Convert a mouse/touch event to milliseconds on the timeline.
     // getBoundingClientRect already accounts for the ruler's scroll position
     // inside the scrollArea, so (pt.x - rect.left) gives content-space X.
@@ -892,9 +945,11 @@ export default class TimelinePane {
         } else if (_clipDrag.type === 'move') {
             var newStart = Math.max(0, Math.round(_clipDrag.origStartTime + dx / PX_PER_MS));
             _clipDrag.spr.updateClip(_clipDrag.clip.id, {startTime: newStart});
+            if (_clipDrag.clip.startTime !== _clipDrag.origStartTime) ScratchJr.changed = true;
         } else {
             var newDur = Math.max(32, Math.round(_clipDrag.origDuration + dx / PX_PER_MS));
             _clipDrag.spr.updateClip(_clipDrag.clip.id, {duration: newDur});
+            if (_clipDrag.clip.duration !== _clipDrag.origDuration) ScratchJr.changed = true;
         }
 
         if (_clipDrag.ghost.parentNode) _clipDrag.ghost.parentNode.removeChild(_clipDrag.ghost);
