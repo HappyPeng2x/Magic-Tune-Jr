@@ -3,6 +3,7 @@ import TransportControls from './TransportControls';
 import Library from './Library';
 import {MOVE_PATH_BLOCKTYPE} from '../engine/TimelineDuration';
 import {laneOf, visibleLanes, freeStart, maxDuration} from '../engine/TimelineLanes';
+import ScratchAudio from '../../utils/ScratchAudio';
 import {newHTML, gn, setProps, scaleMultiplier} from '../../utils/lib';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -817,7 +818,13 @@ export default class TimelinePane {
         clipEl.style.opacity = '0.3';
         document.body.style.cursor = (type === 'resize') ? 'ew-resize' : 'grabbing';
 
+        // Moving a clip out of the timeline pane deletes it: show a trash can
+        // above the pane so that's discoverable while dragging.
+        var trash = (type === 'move') ? TimelinePane._makeTrash() : null;
+
         _clipDrag = {
+            trash: trash,
+            overTrash: false,
             type: type,
             spr:  spr,
             clip: clip,
@@ -829,7 +836,9 @@ export default class TimelinePane {
         };
 
         window.onmousemove = TimelinePane._clipDragMove;
-        window.ontouchmove = TimelinePane._clipDragMove;
+        // Non-passive so preventDefault stops the page from scrolling while a
+        // clip is dragged on a touchscreen (window.ontouchmove is passive).
+        window.addEventListener('touchmove', TimelinePane._clipDragMove, {passive: false});
         window.onmouseup   = TimelinePane._clipDragEnd;
         window.ontouchend  = TimelinePane._clipDragEnd;
     }
@@ -847,6 +856,11 @@ export default class TimelinePane {
         var d = _clipDrag;
         var tl = d.spr.timeline;
         if (d.type === 'move') {
+            d.overTrash = TimelinePane._outsidePane(e);
+            TimelinePane._updateTrash(d, e);
+            if (d.overTrash) return;
+        }
+        if (d.type === 'move') {
             var newStart = Math.max(0, Math.round(d.origStartTime + dx / PX_PER_MS));
             newStart = freeStart(tl, d.clip.blocktype, newStart, d.origDuration, d.clip.id);
             d.ghost.style.left = (newStart * PX_PER_MS) + 'px';
@@ -863,7 +877,7 @@ export default class TimelinePane {
         e.preventDefault();
 
         window.onmousemove = null;
-        window.ontouchmove = null;
+        window.removeEventListener('touchmove', TimelinePane._clipDragMove, {passive: false});
         window.onmouseup   = null;
         window.ontouchend  = null;
         document.body.style.cursor = '';
@@ -871,7 +885,11 @@ export default class TimelinePane {
         var pt = TimelinePane._clipDragPoint(e);
         var dx = pt.x - _clipDrag.startX;
 
-        if (_clipDrag.type === 'move') {
+        if (_clipDrag.type === 'move' && TimelinePane._outsidePane(e)) {
+            _clipDrag.spr.removeClip(_clipDrag.clip.id);
+            ScratchJr.changed = true;
+            ScratchAudio.sndFX('cut.wav');
+        } else if (_clipDrag.type === 'move') {
             var newStart = Math.max(0, Math.round(_clipDrag.origStartTime + dx / PX_PER_MS));
             _clipDrag.spr.updateClip(_clipDrag.clip.id, {startTime: newStart});
         } else {
@@ -880,10 +898,77 @@ export default class TimelinePane {
         }
 
         if (_clipDrag.ghost.parentNode) _clipDrag.ghost.parentNode.removeChild(_clipDrag.ghost);
+        TimelinePane._removeTrash(_clipDrag);
         _clipDrag.clipEl.style.opacity = '';
         _clipDrag = null;
 
         TimelinePane.refresh();
+    }
+
+    // ── Drag-out-to-delete ────────────────────────────────────────────────────
+
+    // True when the pointer is outside the timeline pane (client coords, so
+    // it works for both mouse and touch).
+    static _outsidePane (e) {
+        var pane = gn('timeline-pane');
+        if (!pane) return false;
+        var t = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+        var r = pane.getBoundingClientRect();
+        return t.clientX < r.left || t.clientX > r.right || t.clientY < r.top || t.clientY > r.bottom;
+    }
+
+    // A trash can parked just above the pane while a clip is dragged, plus a
+    // badge that follows the pointer once it leaves the pane (the "cursor",
+    // which also shows under a finger on touchscreens).
+    static _makeTrash () {
+        var pane = gn('timeline-pane');
+        var r = pane.getBoundingClientRect();
+        var dock = document.createElement('div');
+        dock.textContent = '🗑️';
+        setProps(dock.style, {
+            position: 'fixed', zIndex: '9500', pointerEvents: 'none',
+            left: (r.left + (r.width / 2) - 36) + 'px', top: (r.top - 84) + 'px',
+            width: '72px', height: '72px', borderRadius: '50%',
+            background: 'rgba(255,255,255,0.9)', border: '4px dashed #FF6680',
+            fontSize: '38px', lineHeight: '64px', textAlign: 'center',
+            boxSizing: 'border-box', boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+            transition: 'transform 0.12s, background 0.12s',
+        });
+        document.body.appendChild(dock);
+
+        var badge = document.createElement('div');
+        badge.textContent = '🗑️';
+        setProps(badge.style, {
+            position: 'fixed', zIndex: '9600', pointerEvents: 'none', display: 'none',
+            width: '64px', height: '64px', marginLeft: '-32px', marginTop: '-32px',
+            borderRadius: '50%', background: '#FF6680', border: '3px solid #fff',
+            fontSize: '34px', lineHeight: '58px', textAlign: 'center',
+            boxSizing: 'border-box', boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
+        });
+        document.body.appendChild(badge);
+        return {dock: dock, badge: badge};
+    }
+
+    static _updateTrash (d, e) {
+        if (!d.trash) return;
+        var t = (e.touches && e.touches[0]) || e;
+        var out = d.overTrash;
+        d.trash.badge.style.display = out ? 'block' : 'none';
+        d.trash.badge.style.left = t.clientX + 'px';
+        d.trash.badge.style.top = t.clientY + 'px';
+        d.trash.dock.style.transform = out ? 'scale(1.25)' : '';
+        d.trash.dock.style.background = out ? '#FFCDD6' : 'rgba(255,255,255,0.9)';
+        d.ghost.style.display = out ? 'none' : '';
+        d.clipEl.style.opacity = out ? '0.1' : '0.3';
+        document.body.style.cursor = out ? 'none' : 'grabbing';
+    }
+
+    static _removeTrash (d) {
+        if (!d.trash) return;
+        [d.trash.dock, d.trash.badge].forEach(function (el) {
+            if (el.parentNode) el.parentNode.removeChild(el);
+        });
+        d.trash = null;
     }
 
     static _clipDragPoint (e) {
