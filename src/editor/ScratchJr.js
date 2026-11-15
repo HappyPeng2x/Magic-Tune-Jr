@@ -15,6 +15,7 @@ import IO from '../tablet/BrowserIO';
 import Paint from '../painteditor/Paint';
 import Events from '../utils/Events';
 import Grid from './ui/Grid';
+import Undo from './ui/Undo';
 import {libInit, gn, newHTML, frame, getIdFor, scaleMultiplier} from '../utils/lib';
 
 let workingCanvas = document.createElement('canvas');
@@ -152,7 +153,14 @@ export default class ScratchJr {
         });
     }
 
-    static loadCurrentProject (whenDone) {
+    static loadCurrentProject (loaded) {
+        // Every project starts with a fresh undo history. Reset after the
+        // caller's callback: its stage.currentPage.update() records a
+        // 'recreatepage' undo entry that shouldn't be undoable.
+        var whenDone = function () {
+            loaded();
+            Undo.reset();
+        };
         if (!currentProjectData) {
             Project.metadata = {
                 id: currentProject,

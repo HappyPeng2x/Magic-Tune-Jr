@@ -1208,6 +1208,15 @@ export default class Sprite {
         return clip;
     }
 
+    // Put back a previously removed clip (undo), keeping its id. It returns
+    // to its old start time unless that slot in its lane has since been
+    // taken, in which case it snaps to the nearest free one.
+    restoreClip (clip) {
+        clip.startTime = freeStart(this.timeline, clip.blocktype, clip.startTime, clip.duration);
+        this.timeline.push(clip);
+        return clip;
+    }
+
     removeClip (clipId) {
         this.timeline = this.timeline.filter(function (c) {
             return c.id !== clipId;

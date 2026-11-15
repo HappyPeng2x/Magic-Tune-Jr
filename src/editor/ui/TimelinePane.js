@@ -1,6 +1,7 @@
 import ScratchJr from '../ScratchJr';
 import TransportControls from './TransportControls';
 import Library from './Library';
+import Undo from './Undo';
 import {MOVE_PATH_BLOCKTYPE} from '../engine/TimelineDuration';
 import {laneOf, visibleLanes, freeStart, maxDuration} from '../engine/TimelineLanes';
 import ScratchAudio from '../../utils/ScratchAudio';
@@ -939,8 +940,16 @@ export default class TimelinePane {
         var dx = pt.x - _clipDrag.startX;
 
         if (_clipDrag.type === 'move' && TimelinePane._outsidePane(e)) {
-            _clipDrag.spr.removeClip(_clipDrag.clip.id);
-            ScratchJr.changed = true;
+            var removed = JSON.parse(JSON.stringify(_clipDrag.clip));
+            _clipDrag.spr.removeClip(removed.id);
+            // Undoable from the palette's undo button (also marks the
+            // project changed, which schedules the autosave).
+            Undo.record({
+                action: 'deleteclip',
+                where:  _clipDrag.spr.div.parentNode.owner.id,
+                who:    _clipDrag.spr.id,
+                clip:   removed
+            });
             ScratchAudio.sndFX('cut.wav');
         } else if (_clipDrag.type === 'move') {
             var newStart = Math.max(0, Math.round(_clipDrag.origStartTime + dx / PX_PER_MS));
