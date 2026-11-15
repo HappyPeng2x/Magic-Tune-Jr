@@ -23,6 +23,7 @@ import Events from '../../utils/Events';
 import Localization from '../../utils/Localization';
 import ScratchAudio from '../../utils/ScratchAudio';
 import {durationMs, DEFAULT_SPEED, TICK_MS, MOVE_PATH_BLOCKTYPE} from './TimelineDuration';
+import {laneOf, freeStart, maxDuration} from './TimelineLanes';
 import {newHTML, newDiv, newP, gn,
     setCanvasSizeScaledToWindowDocumentHeight,
     DEGTOR, getIdFor, setProps, isTablet, isiOS,
@@ -1167,22 +1168,21 @@ export default class Sprite {
     // Timeline management
     //////////////////////////////////////////
 
-    // Add a clip at `startTime` ms on the given sub-row `track`.
-    // `duration` is calculated from block type and arg if not supplied.
+    // Add a clip as close to `startTime` ms as its lane allows. The lane
+    // (motion / looks / control / sound) comes from the blocktype, and clips
+    // in the same lane never overlap, so the clip may be shifted to the
+    // nearest free slot. `duration` is calculated from block type and arg.
     // Returns the new clip object.
-    addClip (blocktype, arg, startTime, track = 0) {
+    addClip (blocktype, arg, startTime) {
         var speed = this.speed || DEFAULT_SPEED;
         var calculated = durationMs(blocktype, arg, speed);
-        var clip = {
-            id: this.id + '_clip_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+        var duration = calculated !== null ? calculated : 2000;
+        return this._insertClip({
             blocktype: blocktype,
             arg: arg,
             startTime: startTime,
-            duration: calculated !== null ? calculated : 2000,
-            track: track
-        };
-        this.timeline.push(clip);
-        return clip;
+            duration: duration
+        });
     }
 
     // Add a clip built from a recorded stage-drag gesture: `samples` is an
@@ -1190,16 +1190,20 @@ export default class Sprite {
     // gesture's start time. Playback re-applies these offsets to whatever
     // position the sprite is at when the clip becomes active, so moving the
     // clip in time (or the sprite's start position) carries the gesture with it.
-    addPathClip (samples, startTime, track = 0) {
+    addPathClip (samples, startTime) {
         var last = samples[samples.length - 1];
-        var clip = {
-            id: this.id + '_clip_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+        return this._insertClip({
             blocktype: MOVE_PATH_BLOCKTYPE,
             arg: samples,
             startTime: startTime,
-            duration: last ? Math.max(last.t, TICK_MS) : TICK_MS,
-            track: track
-        };
+            duration: last ? Math.max(last.t, TICK_MS) : TICK_MS
+        });
+    }
+
+    _insertClip (clip) {
+        clip.id = this.id + '_clip_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        clip.startTime = freeStart(this.timeline, clip.blocktype, clip.startTime, clip.duration);
+        clip.track = laneOf(clip.blocktype);
         this.timeline.push(clip);
         return clip;
     }
@@ -1215,9 +1219,20 @@ export default class Sprite {
         var clip = this.timeline.find(function (c) {
             return c.id === clipId;
         });
-        if (clip) {
-            Object.assign(clip, changes);
+        if (!clip) return null;
+        changes = Object.assign({}, changes);
+        // Keep the one-clip-at-a-time-per-lane rule: a moved clip snaps to
+        // the nearest free slot, a resized clip stops at its next neighbour.
+        if (changes.startTime !== undefined) {
+            changes.startTime = freeStart(this.timeline, clip.blocktype,
+                changes.startTime, changes.duration || clip.duration, clip.id);
         }
-        return clip || null;
+        if (changes.duration !== undefined) {
+            var start = changes.startTime !== undefined ? changes.startTime : clip.startTime;
+            changes.duration = Math.min(changes.duration,
+                maxDuration(this.timeline, clip.blocktype, start, clip.id));
+        }
+        Object.assign(clip, changes);
+        return clip;
     }
 }

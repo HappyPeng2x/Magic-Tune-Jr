@@ -12,8 +12,9 @@
 
 import ScratchJr from '../ScratchJr';
 import Events from '../../utils/Events';
-import TimelinePane, {PX_PER_MS, TRACK_H, rowHeight, styleAsCandyBlock} from './TimelinePane';
+import TimelinePane, {PX_PER_MS, TRACK_H, rowHeight, laneTop, styleAsCandyBlock} from './TimelinePane';
 import {durationMs} from '../engine/TimelineDuration';
+import {freeStart} from '../engine/TimelineLanes';
 import {frame, gn, localx, localy} from '../../utils/lib';
 
 // Ghost preview element while a drag is in progress over the track list.
@@ -71,7 +72,7 @@ export default class TimelinePalette {
         var info = TimelinePalette._getDropInfo(e);
         if (info && dragcanvas && dragcanvas.owner) {
             var block = dragcanvas.owner;
-            info.spr.addClip(block.blocktype, block.getArgValue(), info.startTime, 0);
+            info.spr.addClip(block.blocktype, block.getArgValue(), info.startTime);
             TimelinePane.refresh();
         }
 
@@ -149,19 +150,25 @@ export default class TimelinePalette {
             rowTop += rowHeight(sprites[i]);
         }
 
-        // Ghost width = expected clip duration × PX_PER_MS.
+        // Ghost = expected clip size, shown in the lane the block belongs to
+        // (wherever in the row it is dragged) at the slot it will snap to.
         var ghostW = 60;
+        var start = info.startTime;
+        var top = rowTop + 2;
         if (Events.dragcanvas && Events.dragcanvas.owner) {
             var block = Events.dragcanvas.owner;
             var speed = (info.spr && info.spr.speed) ? info.spr.speed : 2;
             var dur = durationMs(block.blocktype, block.getArgValue(), speed);
-            if (dur !== null && dur !== Infinity) {
+            if (dur === null) dur = 2000;  // matches Sprite.addClip's default
+            if (dur !== Infinity) {
                 ghostW = Math.max(dur * PX_PER_MS, 8);
+                start = freeStart(info.spr.timeline, block.blocktype, start, dur);
             }
+            top = rowTop + laneTop(info.spr, block.blocktype);
         }
 
-        _ghost.style.left  = (info.startTime * PX_PER_MS) + 'px';
-        _ghost.style.top   = (rowTop + 2) + 'px';
+        _ghost.style.left  = (start * PX_PER_MS) + 'px';
+        _ghost.style.top   = top + 'px';
         _ghost.style.width = ghostW + 'px';
     }
 

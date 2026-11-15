@@ -2,6 +2,7 @@ import ScratchJr from '../ScratchJr';
 import TransportControls from './TransportControls';
 import Library from './Library';
 import {MOVE_PATH_BLOCKTYPE} from '../engine/TimelineDuration';
+import {laneOf, visibleLanes, freeStart, maxDuration} from '../engine/TimelineLanes';
 import {newHTML, gn, setProps, scaleMultiplier} from '../../utils/lib';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -183,15 +184,22 @@ let _revealedLabel = null;
 // Compute the rendered height of a sprite's track row.
 // Exported so TimelinePalette can mirror the calculation without duplicating it.
 export function rowHeight (spr) {
-    var maxTrack = 0;
-    if (spr.timeline) {
-        for (var k = 0; k < spr.timeline.length; k++) {
-            var t = spr.timeline[k].track || 0;
-            if (t > maxTrack) maxTrack = t;
-        }
-    }
-    return Math.max(ROW_H, (maxTrack + 1) * TRACK_H + 4);
+    return Math.max(ROW_H, visibleLanes(spr).length * TRACK_H + 4);
 }
+
+// Top offset (px, within the sprite's row) of the lane a blocktype goes in.
+export function laneTop (spr, blocktype) {
+    var idx = visibleLanes(spr).indexOf(laneOf(blocktype));
+    return Math.max(0, idx) * TRACK_H + 2;
+}
+
+// Lane tint + icon shown at the left of each empty lane strip.
+const LANE_STYLE = {
+    motion:  {color: '#4C97FF', icon: 'Foward'},
+    looks:   {color: '#CF63CF', icon: 'Say'},
+    control: {color: '#FFAB19', icon: 'Wait'},
+    sound:   {color: '#59C059', icon: 'Speaker'},
+};
 
 // ── TimelinePane ──────────────────────────────────────────────────────────────
 
@@ -428,6 +436,35 @@ export default class TimelinePane {
             (RULER_TICK_MS * PX_PER_MS - 1) + 'px, #FFE082 ' +
             (RULER_TICK_MS * PX_PER_MS) + 'px)';
 
+        // One faintly tinted strip per lane so kids can see where each kind
+        // of action lives.
+        var lanes = visibleLanes(spr);
+        for (var li = 0; li < lanes.length; li++) {
+            var ls = LANE_STYLE[lanes[li]];
+            var strip = newHTML('div', 'timeline-lane', track);
+            strip.setAttribute('data-lane', lanes[li]);
+            setProps(strip.style, {
+                position:      'absolute',
+                left:          '0',
+                right:         '0',
+                top:           (li * TRACK_H + 2) + 'px',
+                height:        (TRACK_H - 4) + 'px',
+                background:    ls.color + '1A',
+                borderRadius:  '8px',
+                pointerEvents: 'none',
+            });
+            var laneIcon = document.createElement('img');
+            laneIcon.src = 'assets/blockicons/' + ls.icon + '.svg';
+            setProps(laneIcon.style, {
+                position: 'sticky',
+                left:     '4px',
+                height:   (TRACK_H - 12) + 'px',
+                marginTop: '4px',
+                opacity:  '0.25',
+            });
+            strip.appendChild(laneIcon);
+        }
+
         if (spr.timeline) {
             for (var i = 0; i < spr.timeline.length; i++) {
                 TimelinePane._buildClip(spr.timeline[i], track, spr);
@@ -561,8 +598,7 @@ export default class TimelinePane {
             clip.duration === Infinity ? 200 : clip.duration * PX_PER_MS,
             MIN_CLIP_W
         );
-        var subTrack = clip.track || 0;
-        var top   = subTrack * TRACK_H + 2;
+        var top   = laneTop(spr, clip.blocktype);
         var clipH = TRACK_H - 4;   // 32 px tall at default TRACK_H=36
 
         var color = CLIP_COLOR[clip.blocktype] || DEFAULT_CLIP_COLOR;
@@ -761,8 +797,8 @@ export default class TimelinePane {
         var rect = clipEl.getBoundingClientRect();
         var type = (pt.x >= rect.right - RESIZE_HANDLE_W) ? 'resize' : 'move';
 
-        // Ghost: a dashed outline at the clip's current position.
-        var trackList = gn('timeline-track-list');
+        // Ghost: a dashed outline at the clip's current position, inside the
+        // clip's own row so its row-relative top/left line up.
         var ghost = document.createElement('div');
         ghost.style.position        = 'absolute';
         ghost.style.left            = clipEl.style.left;
@@ -776,7 +812,7 @@ export default class TimelinePane {
         ghost.style.boxSizing       = 'border-box';
         ghost.style.pointerEvents   = 'none';
         ghost.style.zIndex          = '9';
-        trackList.appendChild(ghost);
+        clipEl.parentNode.appendChild(ghost);
 
         clipEl.style.opacity = '0.3';
         document.body.style.cursor = (type === 'resize') ? 'ew-resize' : 'grabbing';
@@ -805,13 +841,20 @@ export default class TimelinePane {
         var pt = TimelinePane._clipDragPoint(e);
         var dx = pt.x - _clipDrag.startX;
 
-        if (_clipDrag.type === 'move') {
-            var newStart = Math.max(0, Math.round(_clipDrag.origStartTime + dx / PX_PER_MS));
-            _clipDrag.ghost.style.left = (newStart * PX_PER_MS) + 'px';
+        // Preview where the clip will actually land: lanes never hold two
+        // clips at once, so moves snap to a free slot and resizes stop at
+        // the next clip.
+        var d = _clipDrag;
+        var tl = d.spr.timeline;
+        if (d.type === 'move') {
+            var newStart = Math.max(0, Math.round(d.origStartTime + dx / PX_PER_MS));
+            newStart = freeStart(tl, d.clip.blocktype, newStart, d.origDuration, d.clip.id);
+            d.ghost.style.left = (newStart * PX_PER_MS) + 'px';
         } else {
             // resize: drag right edge to change duration
-            var newDur = Math.max(32, Math.round(_clipDrag.origDuration + dx / PX_PER_MS));
-            _clipDrag.ghost.style.width = Math.max(newDur * PX_PER_MS, MIN_CLIP_W) + 'px';
+            var newDur = Math.max(32, Math.round(d.origDuration + dx / PX_PER_MS));
+            newDur = Math.min(newDur, maxDuration(tl, d.clip.blocktype, d.origStartTime, d.clip.id));
+            d.ghost.style.width = Math.max(newDur * PX_PER_MS, MIN_CLIP_W) + 'px';
         }
     }
 
