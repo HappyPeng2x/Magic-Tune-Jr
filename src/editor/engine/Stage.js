@@ -4,7 +4,7 @@ import Thumbs from '../ui/Thumbs';
 import UI from '../ui/UI';
 import Undo from '../ui/Undo';
 import ScriptsPane from '../ui/ScriptsPane';
-import TimelinePane from '../ui/TimelinePane';
+import MoveRecorder from '../ui/MoveRecorder';
 import Rectangle from '../../geom/Rectangle';
 import Events from '../../utils/Events';
 import ScratchAudio from '../../utils/ScratchAudio';
@@ -362,10 +362,15 @@ export default class Stage {
     // start position). Paused mid-timeline, dragging is disallowed -- there
     // is no defined meaning for repositioning a sprite mid-playback that
     // survives a later seek.
+    // Characters can be dragged to set their start position (stopped at
+    // 0:00), or -- while the movement recorder is open -- the character
+    // being recorded can be dragged anywhere on the timeline.
     canDragSprite () {
+        var spr = Events.dragthumbnail && Events.dragthumbnail.owner;
+        if (MoveRecorder.isOpen) return MoveRecorder.isRecordingSprite(spr);
         var rt = ScratchJr.runtime;
         if (!rt) return true;
-        return rt.playing || rt.currentTime === 0;
+        return !rt.playing && rt.currentTime === 0;
     }
 
     mouseDownOnSprite (spr, pt) {
@@ -478,11 +483,6 @@ export default class Stage {
         };
         Events.dragged = true;
         ScratchJr.changed = true;
-        // While playing, a stage drag records the sprite's movement as a new
-        // action instead of just repositioning it (see moveElementBy).
-        if (spr.type == 'sprite' && ScratchJr.runtime && ScratchJr.runtime.playing) {
-            ScratchJr.runtime.beginRecording(spr);
-        }
     }
 
     // Abort an in-progress pointer-down gesture before it becomes a real
@@ -521,8 +521,9 @@ export default class Stage {
         var dist = ScratchJr.inFullscreen ? 15 : 5;
         if (!Events.dragged && (Vector.len(delta) > dist)) {
             if (!this.canDragSprite()) {
-                // Paused mid-timeline: dragging isn't allowed. Cancel the
-                // gesture the same way an out-of-bounds pointer does above.
+                // Playing or mid-timeline (outside the movement recorder):
+                // dragging isn't allowed. Cancel the gesture the same way an
+                // out-of-bounds pointer does above.
                 this.cancelDrag();
                 return;
             }
@@ -544,9 +545,6 @@ export default class Stage {
             x: pt.x,
             y: pt.y
         };
-        if (ScratchJr.runtime && ScratchJr.runtime.playing) {
-            ScratchJr.runtime.recordSample();
-        }
     }
 
     wrapDelta (spr, delta) {
@@ -612,15 +610,13 @@ export default class Stage {
     }
 
     moveElementBy (spr) {
-        var rt = ScratchJr.runtime;
-        if (rt && rt.playing) {
-            // The gesture that just ended is recorded as a new movepath clip
-            // (see startSpriteDrag/recordSample) instead of setting the
-            // sprite's start position.
-            if (rt.endRecording()) {
-                TimelinePane.refresh();
-            }
-        } else if (!ScratchJr.inFullscreen) {
+        // While the movement recorder is open the drag is being recorded
+        // (MoveRecorder samples the position itself), not setting the
+        // character's start position.
+        if (MoveRecorder.isOpen) {
+            return;
+        }
+        if (!ScratchJr.inFullscreen) {
             spr.homex = spr.xcoor;
             spr.homey = spr.ycoor;
             spr.homeflip = spr.flip;

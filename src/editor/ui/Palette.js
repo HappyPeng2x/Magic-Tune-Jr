@@ -20,6 +20,7 @@ import Rectangle from '../../geom/Rectangle';
 import DrawPath from '../../utils/DrawPath';
 import ScratchAudio from '../../utils/ScratchAudio';
 import Record from './Record';
+import MoveRecorder from './MoveRecorder';
 import {frame, gn, localx, newHTML, scaleMultiplier, isTablet, newDiv,
     setProps, globalx, localy, globaly, drawScaled, newCanvas,
     setCanvasSize, hitRect, writeText, getStringSize} from '../../utils/lib';
@@ -434,6 +435,52 @@ export default class Palette {
         if ((n == 3) && (ScratchJr.getSprite().sounds.length > 0)) {
             Palette.addSoundsBlocks(dxblocks);
         }
+        if (n == 1) {
+            Palette.addRecordMoveButton(dx);
+        }
+    }
+
+    // Record button at the end of the Motion palette: opens the movement
+    // recorder (drag the character on the stage to record a movement).
+    static addRecordMoveButton (dx) {
+        var pal = gn('palette');
+        var size = Math.round(54 * scaleMultiplier);
+        var btn = newHTML('div', 'record-move', pal);
+        btn.title = 'Record a movement';
+        setProps(btn.style, {
+            position:        'absolute',
+            left:            dx + 'px',
+            top:             blockdy + 'px',
+            width:           size + 'px',
+            height:          size + 'px',
+            backgroundColor: '#4C97FF',
+            backgroundImage: 'linear-gradient(to bottom, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0) 55%)',
+            borderRadius:    '14px',
+            border:          '2px solid rgba(255,255,255,0.65)',
+            boxShadow:       '0 4px 10px rgba(0,0,0,0.28)',
+            display:         'flex',
+            alignItems:      'center',
+            justifyContent:  'center',
+            cursor:          'pointer',
+            boxSizing:       'border-box',
+        });
+        var dot = newHTML('div', null, btn);
+        setProps(dot.style, {
+            width:        Math.round(size * 0.42) + 'px',
+            height:       Math.round(size * 0.42) + 'px',
+            borderRadius: '50%',
+            background:   '#E53935',
+            border:       '3px solid #fff',
+            boxShadow:    '0 1px 3px rgba(0,0,0,0.4)',
+        });
+        var open = function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            ScratchJr.clearSelection();
+            MoveRecorder.open();
+        };
+        btn.ontouchstart = open;
+        btn.onmousedown = open;
     }
 
     static reset () {

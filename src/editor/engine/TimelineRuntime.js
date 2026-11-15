@@ -65,7 +65,7 @@ class VirtualBlock {
 // Linearly interpolate the recorded (dx, dy) offset at `t` ms into a
 // recorded gesture's sample list. Clamps to the first/last sample outside
 // the recorded range.
-function samplePath (samples, t) {
+export function samplePath (samples, t) {
     if (samples.length === 0) return {dx: 0, dy: 0};
     var first = samples[0];
     if (t <= first.t) return {dx: first.dx, dy: first.dy};
@@ -107,16 +107,6 @@ export default class TimelineRuntime {
         // recorded (dx, dy) offset each tick instead of running through the
         // Prims/Thread block-execution machinery.
         this._activePaths = new Map();
-
-        // Sprite ids currently being hand-dragged by the user (either to set
-        // a start position, or to record a new movepath clip). Sprites in
-        // this set are skipped by _syncActiveThreads so a scheduled clip
-        // can't fight the user's drag for control of xcoor/ycoor.
-        this._manualControl = new Set();
-
-        // The in-progress drag-recording gesture, if any: {spr, startTime,
-        // baseX, baseY, samples}. Only one sprite can be dragged at a time.
-        this._recording = null;
     }
 
     // ── Compatibility with Prims that read ScratchJr.runtime.threadsRunning ──
@@ -213,9 +203,6 @@ export default class TimelineRuntime {
         for (var si = 0; si < sprites.length; si++) {
             var spr = sprites[si];
             if (!spr.timeline) continue;
-            // The user is currently hand-dragging this sprite; leave its
-            // clips paused until the drag ends.
-            if (this._manualControl.has(spr.id)) continue;
 
             for (var ci = 0; ci < spr.timeline.length; ci++) {
                 var clip = spr.timeline[ci];
@@ -293,67 +280,6 @@ export default class TimelineRuntime {
             entry.spr.xcoor = entry.baseX + pt.dx;
             entry.spr.ycoor = entry.baseY + pt.dy;
             entry.spr.render();
-        }
-    }
-
-    // ── Drag-to-record: turn a stage drag during playback into a clip ────────
-
-    // Called when a stage drag begins on `spr` while the runtime is playing.
-    // Any clip currently driving the sprite is stopped immediately (the
-    // user's hand takes over), and the sprite is marked manually-controlled
-    // so scheduling leaves it alone until endRecording().
-    beginRecording (spr) {
-        this._stopSpriteMotion(spr);
-        this._manualControl.add(spr.id);
-        this._recording = {
-            spr: spr,
-            startTime: this.currentTime,
-            baseX: spr.xcoor,
-            baseY: spr.ycoor,
-            samples: [{t: 0, dx: 0, dy: 0}]
-        };
-    }
-
-    // Called after the stage drag has updated spr.xcoor/ycoor for the
-    // current pointer position, to append a sample to the in-progress
-    // recording (a no-op if no recording is active).
-    recordSample () {
-        var rec = this._recording;
-        if (!rec) return;
-        rec.samples.push({
-            t:  this.currentTime - rec.startTime,
-            dx: rec.spr.xcoor - rec.baseX,
-            dy: rec.spr.ycoor - rec.baseY
-        });
-    }
-
-    // Called on drag release. Turns the recorded gesture into a new
-    // movepath clip on the sprite's timeline (unless the drag was too brief
-    // to have moved during a tick). Returns the new clip, or null.
-    endRecording () {
-        var rec = this._recording;
-        this._recording = null;
-        if (!rec) return null;
-        this._manualControl.delete(rec.spr.id);
-
-        var last = rec.samples[rec.samples.length - 1];
-        if (!last || last.t < TICK_MS) return null;
-        return rec.spr.addPathClip(rec.samples, rec.startTime);
-    }
-
-    // Stop whatever clip (block-thread or movepath) is currently animating
-    // `spr`, so a manual drag can take exclusive control of its position.
-    _stopSpriteMotion (spr) {
-        for (var entry of Array.from(this._activeThreads.entries())) {
-            if (entry[1].spr === spr) {
-                entry[1].stop(true);
-                this._activeThreads.delete(entry[0]);
-            }
-        }
-        for (var pentry of Array.from(this._activePaths.entries())) {
-            if (pentry[1].spr === spr) {
-                this._activePaths.delete(pentry[0]);
-            }
         }
     }
 
@@ -453,8 +379,6 @@ export default class TimelineRuntime {
         }
         this._activeThreads.clear();
         this._activePaths.clear();
-        this._manualControl.clear();
-        this._recording = null;
     }
 
     // Returns all sprites on the current page that have a timeline array.

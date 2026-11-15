@@ -1,5 +1,6 @@
 import ScratchJr from '../ScratchJr';
 import VideoExporter from './VideoExporter';
+import MoveRecorder from './MoveRecorder';
 import {newHTML, gn} from '../../utils/lib';
 
 // How often the time display refreshes.  The runtime ticks every 32 ms but the
@@ -45,6 +46,10 @@ export default class TransportControls {
     // ── Button handlers ───────────────────────────────────────────────────────
 
     static onPlayPause () {
+        // Using the transport leaves movement-recording mode (discarding
+        // an unsaved recording), so the timeline and recorder never both
+        // drive the characters.
+        if (MoveRecorder.isOpen) MoveRecorder.cancel();
         var rt = ScratchJr.runtime;
         if (!rt) return;
         if (rt.playing) {
@@ -57,6 +62,7 @@ export default class TransportControls {
     }
 
     static onStop () {
+        if (MoveRecorder.isOpen) MoveRecorder.cancel();
         var rt = ScratchJr.runtime;
         if (!rt) return;
         rt.stop();
@@ -64,6 +70,7 @@ export default class TransportControls {
     }
 
     static onRewind () {
+        if (MoveRecorder.isOpen) MoveRecorder.cancel();
         var rt = ScratchJr.runtime;
         if (!rt) return;
         rt.rewind();
